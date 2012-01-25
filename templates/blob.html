@@ -1,0 +1,20 @@
+<div class="blob">
+  <div class="blob_header">
+    {{created}}
+    {% if blob["doc"]["deleted"] %}
+      <span class="blob_deleted">Deleted</span>
+    {% end %}
+    <span class="blob_actions">
+    actions:
+    {% raw handler.blob_link(blob, "show") %}
+    {% raw handler.blob_link(blob, "delete") %}
+    {% raw handler.blob_link(blob, "edit") %}
+    </span>
+  </div>
+  <div class="blob_content">
+    {% raw content %}
+    <div class="blob_footer">
+      doc id: {{doc_id}} / blob id: {{blob_id}} / blob base: {{blob["doc"]["blob_base"]}}
+    </div>
+  </div>
+</div>

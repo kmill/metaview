@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <p>The blob was deleted. {% raw handler.blob_link(blob2, "show", text="This blob") %} is the deleted version.</p>
+{% end %}

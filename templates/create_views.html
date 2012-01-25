@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title2 %} - Create{% end %}
+
+{% block head %}
+  <script type="text/javascript" src="{{static_url("tabber-minimized.js")}}">
+  </script>
+{% end block %}
+
+{% block content %}
+ {% if not create_views %}
+  <p>There is no way to create blobs.</p>
+ {% else %}
+   <div class="tabber">
+     {% for i in range(len(create_views)) %}
+     <div class="tabbertab" title="{{create_views[i][0]}}">
+       {% raw create_views[i][1] %}
+     </div>
+     {% end %}
+   </div>
+ {% end %}
+{% end %}

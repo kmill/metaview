@@ -1,0 +1,9 @@
+<form action="{{ handler.get_blob_url(blob, action="edit") }}" method="post">
+{% raw xsrf_form_html() %}
+{% for key, value in hidden.iteritems() %}
+<input type="hidden" name="{{key}}" value="{{value}}" />
+{% end for %}
+{% raw content %}
+<div>Comment: <input type="text" name="comment" value="" style="width:30em;"/></div>
+<div><input type="submit" value="Save"/></div>
+</form>

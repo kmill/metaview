@@ -1,0 +1,9 @@
+<div class="delete">
+  <form action="{{ handler.get_blob_url(blob, "delete") }}" method="post">
+{% raw xsrf_form_html() %}
+<input type="hidden" name="blob_id" value="{{blob.id}}" />
+Are you sure you want to delete the following blob?
+<input type="submit" name="submit" value="Yes, delete it" />
+</form>
+</div>
+{% module BlobModule(blob, "show") %}
