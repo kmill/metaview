@@ -1,18 +1,28 @@
 <div class="blob">
   <div class="blob_header">
-    {{created}}
-    {% if blob["doc"]["deleted"] %}
-      <span class="blob_deleted">Deleted</span>
-    {% end %}
-    <span class="blob_actions">
-    actions:
-    {% raw handler.blob_link(blob, "show") %}
-    {% raw handler.blob_link(blob, "delete") %}
-    {% raw handler.blob_link(blob, "edit") %}
-    </span>
+    <div class="blob_header_left">
+      {{created}}
+      {% if not a_data.get("suppress_reply_to_data", False) and blob["doc"]["reply_to"] %}
+        {% raw handler.get_doc_link(blob["doc"]["reply_to"], "show", "[a reply]") %}
+      {% end %}
+    </div>
+    <div class="blob_header_right">
+      <span class="blob_actions">
+      actions:
+      {% raw handler.blob_link(blob, "show") %}
+      {% raw handler.blob_link(blob, "delete") %}
+      {% raw handler.reply_to_blob_link(blob) %}
+      {% raw handler.blob_link(blob, "edit") %}
+      </span>
+    </div>
+    <div class="clear"></div>
   </div>
   <div class="blob_content">
-    {% raw content %}
+    {% if blob["doc"]["deleted"] %}
+      <div class="blob_deleted">Deleted</div>
+    {% else %}
+      {% raw content %}
+    {% end %}
     <div class="blob_footer">
       doc id: {{doc_id}} / blob id: {{blob_id}} / blob base: {{blob["doc"]["blob_base"]}}
     </div>

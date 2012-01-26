@@ -1,15 +1,26 @@
-import blobs
-import views
 import tornado.ioloop
 import tornado.web as web
 import tornado.escape
 import tornado.template
 import tornado.httputil
+import httplib
+
 import pymongo
+import gridfs
+import gridfs.errors
+
 import uuid
 import base64
 import hashlib
-import httplib
+
+import datetime
+import time
+import email.utils
+
+import blobs
+import blobviews
+import bbviews
+import docviews
 
 def random256() :
     return base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes)
@@ -20,6 +31,12 @@ class MVRequestHandler(tornado.web.RequestHandler) :
     @property
     def db(self) :
         return self.application.db
+    @property
+    def fs(self) :
+        return self.application.fs
+    @property
+    def handler(self) :
+        return self
 
     def write_error(self, status_code, **kwargs) :
         import traceback
@@ -46,6 +63,8 @@ class MVRequestHandler(tornado.web.RequestHandler) :
         user = res[0]
         return user
 
+    def get_blob(self, blobid) :
+        return blobs.Blob(self.db, blobid)
     def get_blob_url(self, blob, action="show") :
         return tornado.httputil.url_concat("/blob/%s" % blob.id,
                                            dict(action=action))
@@ -55,10 +74,43 @@ class MVRequestHandler(tornado.web.RequestHandler) :
         esc_url = tornado.escape.xhtml_escape(self.get_blob_url(blob, action))
         return "<a href=\"%s\">%s</a>" % (esc_url, text)
 
+    def get_doc_url(self, doc_id, action="show") :
+        return tornado.httputil.url_concat("/doc/%s" % doc_id,
+                                           dict(action=action))
+    def get_doc_link(self, doc_id, action, text=None) :
+        if not text :
+            text = action
+        esc_url = tornado.escape.xhtml_escape(self.get_doc_url(doc_id, action))
+        return "<a href=\"%s\">%s</a>" % (esc_url, text)
+
+    def reply_to_blob_link(self, blob, text=None) :
+        if not text :
+            text = "reply"
+        url = tornado.httputil.url_concat("/create/" + tornado.escape.xhtml_escape(blob["doc"]["blob_base"]),
+                                          dict(reply_to=str(blob["doc"]["doc_id"])))
+        return "<a href=\"%s\">%s</a>" % (url, text)
+    def get_file_url(self, id) :
+        return "/file/%s" % id
+
 class MainHandler(MVRequestHandler) :
     @tornado.web.authenticated
     def get(self) :
         self.render("main_test.html", the_blobs=blobs.Blob.find_by_tags(self.db, {}))
+
+class DocHandler(MVRequestHandler) :
+    def decode_from_id(self, id) :
+        action = self.get_argument("action", "show")
+        try :
+            doc_id = uuid.UUID(id)
+        except :
+            raise tornado.web.HTTPError(404)
+        return action, doc_id
+
+    @tornado.web.authenticated
+    def get(self, id) :
+        action, doc_id = self.decode_from_id(id)
+        docviews.doc_views[action](self, doc_id)
+
 
 class BlobHandler(MVRequestHandler) :
     def decode_from_id(self, id) :
@@ -76,17 +128,23 @@ class BlobHandler(MVRequestHandler) :
     @tornado.web.authenticated
     def post(self, id) :
         action, this_blob = self.decode_from_id(id)
-        views.blob_views[action+"_post"](self, this_blob, {})
+        blobviews.blob_views[action+"_post"](self, this_blob, {})
 
 class CreateHandler(MVRequestHandler) :
     @tornado.web.authenticated
     def get(self, blob_base=None) :
         if not blob_base :
             blob_base = self.current_user["blob_base"]
-        create_views = [(blob_type,
-                         views.blob_create_view(self, blob_type, blob_base, {}))
+        create_views = [(blob_type, blob_type == self.get_argument("type", ""),
+                         blobviews.blob_create_view(self, blob_type, blob_base, {}))
                         for blob_type in blobs.blob_types]
-        self.render("create_views.html", create_views=create_views)
+        try :
+            doc_id = uuid.UUID(self.get_argument("reply_to", ""))
+            reply_tos = blobs.Blob.tags_to_blobs(self.db, self.db.tags.find({"_doc_id" : doc_id}))
+        except ValueError :
+            reply_tos = None
+        self.render("create_views.html", create_views=create_views, reply_tos=reply_tos)
+            
     @tornado.web.authenticated
     def post(self, blob_base=None) :
         blob = blobs.create_blob(self, {})
@@ -103,7 +161,7 @@ class SearchHandler(MVRequestHandler) :
             if part :
                 kv = part.split("=", 2)
                 if len(kv) == 1 :
-                    k, v = "category", kv[0]
+                    k, v = "tag", kv[0]
                 else :
                     k, v = kv
                 if k[0] == "<" :
@@ -116,6 +174,11 @@ class SearchHandler(MVRequestHandler) :
         print search, sort
         the_blobs = list(blobs.Blob.find_by_tags(self.db, search, sort))
         self.render("search.html", the_blobs=the_blobs, query=query)
+
+class BlobBaseHandler(MVRequestHandler) :
+    @tornado.web.authenticated
+    def get(self, blob_base, view) :
+        bbviews.bb_views[view](self, blob_base)
 
 class LoginHandler(MVRequestHandler) :
     def prepare(self) :
@@ -148,28 +211,85 @@ class LogoutHandler(MVRequestHandler) :
         self.clear_cookie("user")
         self.redirect("/")
 
+class FileHandler(MVRequestHandler) :
+    CACHE_MAX_AGE = 86400*365*10 #10 years
+
+    @tornado.web.authenticated
+    def head(self, path) :
+        self.get(path, include_body=False)
+
+    @tornado.web.authenticated
+    def get(self, id, include_body=True) :
+        try :
+            f = self.fs.get(uuid.UUID(id))
+            self.set_header("Content-Type", f.content_type)
+            self.set_header("Content-Length", f.length)
+            self.set_header("Last-Modified", f.upload_date)
+
+            # aggressive caching
+            self.set_header("Expires", (datetime.datetime.utcnow() +
+            datetime.timedelta(seconds=self.CACHE_MAX_AGE)))
+            self.set_header("Cache-Control", "max-age=" + str(self.CACHE_MAX_AGE))
+
+            ims_value = self.request.headers.get("If-Modified-Since")
+            if ims_value is not None :
+                date_tuple = email.utils.parsedate(ims_value)
+                if_since = datetime.datetime.fromtimestamp(time.mktime(date_tuple))
+                if if_since >= f.upload_date :
+                    self.set_status(304)
+                    return
+            
+            if not include_body :
+                return
+
+            self.write(f.read())
+            self.flush()
+            print "wrote"
+            return
+        except (gridfs.errors.NoFile, ValueError) :
+            raise tornado.web.HTTPError(404)
+
 class RebuildHandler(MVRequestHandler) :
     @tornado.web.authenticated
     def get(self) :
-        for blob in blobs.Blob.find_by_tags(self.db, {}) :
-            self.write("<p>%s</p>" % blob.id)
-            blobs.update_blob_metadata(blob)
+        recent_ids = self.db.doc.find({"deleted" : False,
+                                       },
+                                      fields={"_id", "previous_version"})
+        ids = dict()
+        for res in recent_ids :
+            self.write("<p>%s</p>" % res)
+            if res["previous_version"] :
+                ids[res["previous_version"]] = False
+            if res["_id"] not in ids :
+                ids[res["_id"]] = True
+        self.write("<p>%s</p>" % ids)
+        for id,v in ids.iteritems() :
+            if v :
+                self.write("<p>%s</p>" % id)
+                blobs.update_blob_metadata(blobs.Blob(self.db, id))
         self.write("<p>Done.</p>")
 
 class BlobModule(tornado.web.UIModule) :
-    def render(self, blob, action) :
-        return views.blob_views[action](self, blob, {})
-        #return views.blob_to_html(self.render_string, blob, {})
+    @property
+    def db(self) :
+        return self.handler.application.db
+    @property
+    def fs(self) :
+        return self.handler.application.fs
+
+    def render(self, blob, action, **data) :
+        return blobviews.blob_views[action](self, blob, data.copy())
 
 class MVApplication(tornado.web.Application) :
     def __init__(self) :
         self.db = pymongo.Connection()['metaview']
         self.db.users.ensure_index("username", unique=True)
+        self.fs = gridfs.GridFS(self.db, collection='fs')
 
         settings = dict(
             app_title="MetaView",
-            template_path="../templates",
-            static_path="../static",
+            template_path="templates",
+            static_path="static",
             login_url="/login",
             cookie_secret=random256(),
             ui_modules={"BlobModule" : BlobModule},
@@ -178,10 +298,13 @@ class MVApplication(tornado.web.Application) :
         
         handlers = [
             (r"/", MainHandler),
+            (r"/file/(.*)", FileHandler),
+            (r"/doc/(.*)", DocHandler),
             (r"/blob/(.*)", BlobHandler),
             (r"/create", CreateHandler),
             (r"/create/(.*)", CreateHandler),
             (r"/search/(.*)", SearchHandler),
+            (r"/bb/(\w*)/(.*)", BlobBaseHandler),
             (r"/login", LoginHandler),
             (r"/logout", LogoutHandler),
             (r"/rebuild", RebuildHandler),
@@ -193,6 +316,7 @@ class MVApplication(tornado.web.Application) :
 # Initialized modules
 #
 import modtext
+import modfile
 
 if __name__=="__main__" :
     print "Starting metaview..."

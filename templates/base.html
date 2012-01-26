@@ -28,15 +28,18 @@ function clickrecall(inp) {
 <body>
 <div id="body">
   <div id="header">
-    <form id="header_search" action="/search/{{ current_user["blob_base"] }}" method="get">
-    <input type="text" name="q" value="{% block search_string %}search{% end %}"
-      onfocus="clickclear(this);" onblur="clickrecall(this);" />
-    </form>
-    <a href="/">Home</a> |
-    <a href="/create/{{ current_user["blob_base"] }}">Create</a>
-    <span class="header_right">
+    <div class="header_left">
+      <form id="header_search" action="/search/{{ current_user["blob_base"] }}" method="get">
+      <input type="text" name="q" value="{% block search_string %}search{% end %}"
+        onfocus="clickclear(this);" onblur="clickrecall(this);" />
+      </form>
+      <a href="/">Home</a> |
+      <a href="/create/{{ current_user["blob_base"] }}">Create</a>
+    </div>
+    <div class="header_right">
       Hi, {{ current_user["username"] }}! <a href="/logout">(log out)</a>
     </div>
+    <div class="clear"></div>
   </div>
   <div id="content">{% block content %}{% end %}</div>
 </div>

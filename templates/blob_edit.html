@@ -1,4 +1,4 @@
-<form action="{{ handler.get_blob_url(blob, action="edit") }}" method="post">
+<form action="{{ handler.get_blob_url(blob, action="edit") }}" method="post" enctype="multipart/form-data">
 {% raw xsrf_form_html() %}
 {% for key, value in hidden.iteritems() %}
 <input type="hidden" name="{{key}}" value="{{value}}" />

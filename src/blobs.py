@@ -23,6 +23,16 @@ class Blob(object) :
         self._data = kwargs.copy()
 
     @staticmethod
+    def ids_to_blobs(db, ids) :
+        return (Blob(db, id) for id in ids)
+    @staticmethod
+    def docs_to_blobs(db, docs) :
+        return (Blob(db, doc["_id"], doc=doc) for doc in docs)
+    @staticmethod
+    def tags_to_blobs(db, tagss) :
+        return (Blob(db, tags["_id"], tags=tags) for tags in tagss)
+
+    @staticmethod
     def find_by_tags(db, spec, sort=None) :
         if sort :
             return (Blob(db, res["_id"], tags=res) for res in db["tags"].find(spec).sort(sort))
@@ -57,18 +67,22 @@ blob_types = []
 #
 
 @create_blob.add_action
-def create_blob_default(request_handler, doc) :
-    blob_base = request_handler.get_argument("blob_base", request_handler.current_user["blob_base"])
-    comment = request_handler.get_argument("comment", "")
-    db = request_handler.db
+def create_blob_default(handler, doc) :
+    blob_base = handler.get_argument("blob_base", handler.current_user["blob_base"])
+    comment = handler.get_argument("comment", "")
+    db = handler.db
     blob_id = uuid.uuid4()
     doc_id = uuid.uuid4()
+    try :
+        reply_to = uuid.UUID(handler.get_argument("reply_to", ""))
+    except ValueError :
+        reply_to = None
     doc.update({"_id" : blob_id, # the unique id of this entry
                 "deleted" : False,
                 "doc_id" : doc_id, # the id of the new document
                 "blob_base" : blob_base,
                 "previous_version" : None, # it's not a new version of anything
-                "reply_to" : None, # and not in reply to anything
+                "reply_to" : reply_to, # and not in reply to anything
                 "created" : datetime.datetime.now(),
                 "comment" : comment,
                 })
@@ -104,12 +118,18 @@ def delete_blob_default(blob) :
     newblob_id = uuid.uuid4()
     oldblob_id = blob.id
     blob.id = newblob_id
-    blob["doc"].update({"_id" : newblob_id,
-                        "deleted" : True,
-                        "previous_version" : oldblob_id,
-                        "created" : datetime.datetime.now(), # update when this blob was created (deleted)
-                        "comment" : "**deleted**",
-                        })
+    new_doc = {"_id" : newblob_id,
+               "doc_id" : blob["doc"]["doc_id"],
+               "blob_base" : blob["doc"]["blob_base"],
+               "deleted" : True,
+               "previous_version" : oldblob_id,
+               "reply_to" : blob["doc"]["reply_to"],
+               "created" : datetime.datetime.now(), # that is, when the blob was deleted.
+               "comment" : "**deleted**",
+               "type" : None,
+               }
+    blob["doc"].clear()
+    blob["doc"].update(new_doc)
     blob.db["doc"].insert(blob["doc"])
     remove_blob_metadata(blob)
     return blob
@@ -133,6 +153,7 @@ def remove_blob_metadata_tag(blob) :
 def update_blob_metadata_default(blob) :
     blob["tags"].update({"_id" : blob.id,
                          "_doc_id" : blob["doc"]["doc_id"],
+                         "_reply_to" : blob["doc"]["reply_to"],
                          "created" : blob["doc"]["created"],
                          "blob_base" : blob["doc"]["blob_base"],
                          })

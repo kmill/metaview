@@ -1,0 +1,10 @@
+{% if blob["doc"]["file_type"].startswith("image/") %}
+<a href="{{ handler.get_file_url(blob["doc"]["file_id"]) }}">
+<img src="{{ handler.get_file_url(blob["doc"]["file_id"]) }}" />
+</a>
+{% end %}
+<div>
+  <a href="{{ handler.get_file_url(blob["doc"]["file_id"]) }}">Download {{ blob["doc"]["file_name"] }}</a>
+</div>
+{% raw prior_content %}
+{% raw content %}

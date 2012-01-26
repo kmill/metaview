@@ -42,7 +42,7 @@ def parse_markup(text) :
         else :
             line_data.append(get_line_prefix(line))
             line_num += 1
-    return tags, parse_tags(keys, tags)+parse_structure(line_data)
+    return tags, parse_tags(keys, tags), parse_structure(line_data)
 
 def parse_tags(keys, tags) :
     out = []
