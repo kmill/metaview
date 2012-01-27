@@ -66,7 +66,8 @@ def show_blob_default(handler, blob, a_data) :
         return blob_to_html(handler.render_string, blob, a_data)
 
 def render_blob_replies(handler, blob, top=False) :
-    res = list(handler.db.tags.find({"_reply_to" : blob["doc"]["doc_id"]}).sort([("created", 1)]))
+    res = list(handler.db.tags.find({"_reply_to" : blob["doc"]["doc_id"],
+                                     "_masked" : False}).sort([("created", 1)]))
     if not res :
         suffix = ""
     else :

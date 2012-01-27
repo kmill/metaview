@@ -34,7 +34,8 @@ function clickrecall(inp) {
         onfocus="clickclear(this);" onblur="clickrecall(this);" />
       </form>
       <a href="/">Home</a> |
-      <a href="/create/{{ current_user["blob_base"] }}">Create</a>
+      <a href="/create/{{ current_user["blob_base"] }}">Create</a> |
+      <a href="/bb/{{ current_user["blob_base"] }}/recent_changes">Recent Changes</a>
     </div>
     <div class="header_right">
       Hi, {{ current_user["username"] }}! <a href="/logout">(log out)</a>

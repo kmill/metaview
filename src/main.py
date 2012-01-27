@@ -95,7 +95,9 @@ class MVRequestHandler(tornado.web.RequestHandler) :
 class MainHandler(MVRequestHandler) :
     @tornado.web.authenticated
     def get(self) :
-        self.render("main_test.html", the_blobs=blobs.Blob.find_by_tags(self.db, {}))
+        self.render("main_test.html",
+                    the_blobs=blobs.Blob.find_by_tags(self.db, {"_reply_to" : None,
+                                                                "_masked" : False}))
 
 class DocHandler(MVRequestHandler) :
     def decode_from_id(self, id) :
@@ -140,7 +142,8 @@ class CreateHandler(MVRequestHandler) :
                         for blob_type in blobs.blob_types]
         try :
             doc_id = uuid.UUID(self.get_argument("reply_to", ""))
-            reply_tos = blobs.Blob.tags_to_blobs(self.db, self.db.tags.find({"_doc_id" : doc_id}))
+            reply_tos = blobs.Blob.tags_to_blobs(self.db, self.db.tags.find({"_doc_id" : doc_id,
+                                                                             "_masked" : False}))
         except ValueError :
             reply_tos = None
         self.render("create_views.html", create_views=create_views, reply_tos=reply_tos)
@@ -153,7 +156,7 @@ class CreateHandler(MVRequestHandler) :
 class SearchHandler(MVRequestHandler) :
     @tornado.web.authenticated
     def get(self, blob_base) :
-        search = { "blob_base" : blob_base }
+        search = { "blob_base" : blob_base, "_masked" : False }
         sort = [("created", -1)]
         query = self.get_argument("q", "")
         parts = query.split(",")
@@ -170,7 +173,7 @@ class SearchHandler(MVRequestHandler) :
                 if k[0] == ">" :
                     k = k[1:]
                     sort.append((k,-1))
-                search[k] = v.strip().lower() #{ "$regex" : v, "$options" : 'i' }
+                search[k] = v.strip() #{ "$regex" : v, "$options" : 'i' }
         print search, sort
         the_blobs = list(blobs.Blob.find_by_tags(self.db, search, sort))
         self.render("search.html", the_blobs=the_blobs, query=query)
@@ -252,21 +255,14 @@ class FileHandler(MVRequestHandler) :
 class RebuildHandler(MVRequestHandler) :
     @tornado.web.authenticated
     def get(self) :
-        recent_ids = self.db.doc.find({"deleted" : False,
-                                       },
-                                      fields={"_id", "previous_version"})
-        ids = dict()
-        for res in recent_ids :
-            self.write("<p>%s</p>" % res)
-            if res["previous_version"] :
-                ids[res["previous_version"]] = False
-            if res["_id"] not in ids :
-                ids[res["_id"]] = True
-        self.write("<p>%s</p>" % ids)
-        for id,v in ids.iteritems() :
-            if v :
-                self.write("<p>%s</p>" % id)
-                blobs.update_blob_metadata(blobs.Blob(self.db, id))
+        self.db.tags.remove()
+        ids = self.db.doc.find({}, fields={"_id"})
+        for idv in ids :
+            id = idv["_id"]
+            self.write("<p>%s</p>" % id)
+            blob = blobs.Blob(self.db, id)
+            blobs.mask_blob_metadata(blob)
+            blobs.update_blob_metadata(blob)
         self.write("<p>Done.</p>")
 
 class BlobModule(tornado.web.UIModule) :
@@ -278,6 +274,7 @@ class BlobModule(tornado.web.UIModule) :
         return self.handler.application.fs
 
     def render(self, blob, action, **data) :
+        print blob.id
         return blobviews.blob_views[action](self, blob, data.copy())
 
 class MVApplication(tornado.web.Application) :

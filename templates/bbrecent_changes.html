@@ -17,7 +17,7 @@
   <tr>
     <td>{{ blob["doc"]["created"].strftime("%I:%M:%S %p") }}</td>
     <td>{% raw handler.blob_link(blob, "show") %}</td>
-    <td>{{ blobviews.blob_get_name(blob) }}</td>
+    <td>{{ ("[old %s ]" if blob["tags"].get("_masked",False) else "%s") % blobviews.blob_get_name(blob) }}</td>
     <td><em>{{ blob["doc"].get("comment","") }}</em></td>
   </tr>
 {% end %}

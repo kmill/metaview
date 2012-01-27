@@ -2,6 +2,6 @@
 
 {% block content %}
  {% for blob in the_blobs %}
-  {% module BlobModule(blob, "show") %}
+  {% module BlobModule(blob, "show", full_view=True) %}
  {% end %}
 {% end %}

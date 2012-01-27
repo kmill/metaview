@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% import blobviews %}
+<div class="viewframe">
+  <h1>Document history</h1>
+{% for prefix,blob in history_entries %}
+<div><tt>{% raw prefix %}</tt>
+  {% if blob %}
+  {% raw handler.blob_link(blob, "show", "(show)") %}
+  {{ blobviews.blob_get_name(blob) }} <em>{{ blob["doc"]["comment"] }}</em>
+  {% end %}
+</div>
+{% end %}
+</div>
+{% end %}

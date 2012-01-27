@@ -17,7 +17,7 @@ from tornado.httpclient import HTTPError
 class Blob(object) :
     """This is an object which pulls in data lazily from the given database."""
     def __init__(self, db, id, **kwargs) :
-        """shouldn't call directly"""
+        assert type(id) != dict
         self.db = db
         self.id = id
         self._data = kwargs.copy()
@@ -55,7 +55,7 @@ class Blob(object) :
 create_blob = ActionList(doc="Provides a way to create a blob from form data.")
 update_blob = ActionList(doc="Provides a way to update a blob from an edited blob object.")
 delete_blob = ActionList(doc="Provides a way to delete a blob a blob object.")
-remove_blob_metadata = ActionList(doc="Removes traces of the previous version of the blob's metadata.")
+mask_blob_metadata = ActionList(doc="Mask traces of the previous version of the blob's metadata.")
 update_blob_metadata = ActionList(doc="Adds the metadata for the blob.")
 
 # each mod{blobtype} should register themselves in this array for the
@@ -105,7 +105,7 @@ def update_blob_default(blob) :
                         "created" : datetime.datetime.now(), # update when this blob was created
                         })
     blob.db["doc"].insert(blob["doc"])
-    remove_blob_metadata(blob)
+    mask_blob_metadata(blob)
     update_blob_metadata(blob)
     return blob
 
@@ -131,18 +131,18 @@ def delete_blob_default(blob) :
     blob["doc"].clear()
     blob["doc"].update(new_doc)
     blob.db["doc"].insert(blob["doc"])
-    remove_blob_metadata(blob)
+    mask_blob_metadata(blob)
     return blob
 
 #
 # remove_blob
 #
 
-@remove_blob_metadata.add_action
-def remove_blob_metadata_tag(blob) :
-    if blob["previous_version"] is not None :
-        blob.db["tags"].remove(blob["doc"]["previous_version"])
-    blob.db["tags"].remove(blob.id)
+@mask_blob_metadata.add_action
+def mask_blob_metadata_tag(blob) :
+    if blob["doc"]["previous_version"] is not None :
+        blob.db.tags.update({"_id" : blob["doc"]["previous_version"]},
+                            {"$set" : {"_masked" : True}}, upsert=True)
     raise DeferAction()
 
 #
@@ -153,8 +153,11 @@ def remove_blob_metadata_tag(blob) :
 def update_blob_metadata_default(blob) :
     blob["tags"].update({"_id" : blob.id,
                          "_doc_id" : blob["doc"]["doc_id"],
-                         "_reply_to" : blob["doc"]["reply_to"],
+                         "_reply_to" : blob["doc"].get("reply_to", None),
                          "created" : blob["doc"]["created"],
                          "blob_base" : blob["doc"]["blob_base"],
                          })
-    blob.db["tags"].update({"_id" : blob.id}, blob["tags"], upsert=True)
+    if "_masked" not in blob["tags"] :
+        blob["tags"]["_masked"] = False
+    if not blob["doc"].get("deleted", False) :
+        blob.db["tags"].update({"_id" : blob.id}, blob["tags"], upsert=True)
