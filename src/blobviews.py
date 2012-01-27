@@ -35,8 +35,11 @@ blob_create_view = ActionList(doc="""This is to construct a view for
 #
 
 @blob_get_name.add_action
-def blob_get_name_default(blob) :
-    return str(blob["doc"]["doc_id"])
+def blob_get_name_default(blob, default=None) :
+    if default :
+        return default
+    else :
+        return str(blob["doc"]["doc_id"])
 
 #
 # blob_to_html

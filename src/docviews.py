@@ -95,7 +95,8 @@ def docview_history_default(handler, doc_id) :
 
         if dests :
             change_lines = make_change_string(dests, len(curr_trails))
-            history_entries.append((change_lines.replace(" ", "&nbsp;"), None))
+            if change_lines :
+                history_entries.append((change_lines.replace(" ", "&nbsp;"), None))
 
         last_trails = curr_trails
 
@@ -106,7 +107,7 @@ def docview_history_default(handler, doc_id) :
             else :
                 line += "| "
         history_entries.append((line, blob_by_id[curr]))
-    handler.render("doc_history.html", history_entries=history_entries)
+    handler.render("doc_history.html", doc_id=doc_id, history_entries=history_entries)
 
 
 def make_change_string(dests, num_dest) :

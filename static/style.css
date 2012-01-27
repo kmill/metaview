@@ -263,3 +263,13 @@ ul.tabbernav li.tabberactive a:hover {
     border:1px solid #aaa;
     border-top:0;
 }
+
+
+/*.dochistorytable {border-width: 0; border-spacing: 0;}*/
+.dochistorytable td {vertical-align: top; }
+.dochistorytable table {margin: 0; padding: 0; border-width: 0; border-spacing: 0;}
+.dochistorytable table tbody {margin: 0; padding: 0; border-width: 0; border-spacing: 0;}
+.dochistorytable table tr {margin: 0; padding: 0; border-width: 0; border-spacing: 0;}
+.dochistorytable table td {margin: 0; padding: 0; border-width: 0; border-spacing: 0;}
+
+.dochistorytable tt { font-weight: bold; }

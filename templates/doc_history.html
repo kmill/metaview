@@ -6,7 +6,8 @@
 {% set last_date = datetime.date.min %}
 <div class="viewframe">
   <h1>Document history</h1>
-  <table>
+  <p>For the document {% raw handler.get_doc_link(doc_id, "show", str(doc_id)) %}</p>
+  <table class="dochistorytable">
 {% for prefix,blob in history_entries %}
     <tr>
       <td style="padding-right:0.5em;">
@@ -17,13 +18,22 @@
       </td>
       <td style="padding-right:1em;">{% if blob %}{{ blob["doc"]["created"].strftime("%H:%M:%S") }}{% end %}</td>
     <td>
-<div><tt>{% raw prefix %}</tt>
+    <table>
+      <tr><td style="padding-right:0.75em;"><tt>{% raw prefix %}</tt></td>
+      <td>
   {% if blob %}
   {% raw handler.blob_link(blob, "show", "(show)") %}
-  {{ blobviews.blob_get_name(blob) }} <em>{{ blob["doc"]["comment"] }}</em>
-  {% if not blob["tags"].get("_masked", False) and not blob["doc"]["deleted"] %}<strong>(current)</strong>{% end %}
+  {% if blob["doc"]["deleted"] %}
+   <em>{{ blob["doc"]["comment"] }}</em>
+  {% else %}
+    {{ blobviews.blob_get_name(blob, default="(no name)") }}
+    {% if blob["doc"]["comment"] %}
+	&mdash; <em>{{ blob["doc"]["comment"] }}</em>
+    {% end %}
+    {% if not blob["tags"].get("_masked", False) %}<strong>(current)</strong>{% end %}
   {% end %}
-</div>
+  {% end %}
+     </td></tr></table>
 </td>
 </tr>
 {% end %}

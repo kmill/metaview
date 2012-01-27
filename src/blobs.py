@@ -48,6 +48,9 @@ class Blob(object) :
         return self._data[type]
     def __getitem__(self, key) :
         return self.get_data(key)
+    def invalidate(self, type) :
+        if type in self._data :
+            del self._data[type]
 
 ##
 ## Model for blobs
@@ -57,6 +60,9 @@ update_blob = ActionList(doc="Provides a way to update a blob from an edited blo
 delete_blob = ActionList(doc="Provides a way to delete a blob a blob object.")
 mask_blob_metadata = ActionList(doc="Mask traces of the previous version of the blob's metadata.")
 update_blob_metadata = ActionList(doc="Adds the metadata for the blob.")
+
+filter_blob_metadata = ActionList(doc="""Lets one filter the tags for
+   a blob before they're stored into the database.""")
 
 # each mod{blobtype} should register themselves in this array for the
 # create view to be able to populate itself with create views
@@ -160,4 +166,25 @@ def update_blob_metadata_default(blob) :
     if "_masked" not in blob["tags"] :
         blob["tags"]["_masked"] = False
     if not blob["doc"].get("deleted", False) :
-        blob.db["tags"].update({"_id" : blob.id}, blob["tags"], upsert=True)
+        tags = filter_blob_metadata(blob.db, blob["tags"].copy())
+        blob.db["tags"].update({"_id" : blob.id}, tags, upsert=True)
+        blob.invalidate("tags")
+
+#
+# filter_blob_metadata
+#
+
+@filter_blob_metadata.add_action
+def filter_blob_metadata_default(db, tags) :
+    return tags
+
+@filter_blob_metadata.add_action
+def filter_blob_metadata_break_tag(db, tags) :
+    if "tag" not in tags :
+        raise DeferAction()
+    else :
+        if type(tags["tag"]) is list :
+            tags["tag"] = [t.strip() for tl in tags["tag"] for t in tl.split(";")]
+        else :
+            tags["tag"] = [t.strip() for t in tags["tag"].split(";")]
+        raise ContinueWith(db, tags)

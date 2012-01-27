@@ -274,7 +274,7 @@ class BlobModule(tornado.web.UIModule) :
         return self.handler.application.fs
 
     def render(self, blob, action, **data) :
-        print blob.id
+        print "BlobModule; blob.id =",blob.id
         return blobviews.blob_views[action](self, blob, data.copy())
 
 class MVApplication(tornado.web.Application) :

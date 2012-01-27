@@ -75,7 +75,7 @@ def textblob_to_html(render_string, blob, a_data) :
 #
 
 @blobviews.blob_get_name.add_action
-def blob_get_name_default(blob) :
+def blob_get_name_default(blob, default=None) :
     tags = blob["tags"]
     if tags and "title" in tags :
         return tags["title"]
