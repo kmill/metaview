@@ -46,6 +46,8 @@ def render_blob_replies(handler, blob) :
 
 @doc_views.add_action("history")
 def docview_history_default(handler, doc_id) :
+    def is_blobid_current(mapping, bid) :
+        return not mapping[bid]["doc"]["deleted"] and not mapping[bid]["tags"].get("_masked", False)
     entries = handler.db.doc.find({"doc_id" : doc_id}).sort([("created", 1)])
     blob_by_id = dict()
     # ([seen_versions], curr_version)
@@ -70,7 +72,10 @@ def docview_history_default(handler, doc_id) :
     last_trails = []
     for i, (seen, curr) in enumerate(version_data) :
         will_use = prev_ref[i+1:]
-        curr_trails = [s for s in seen if s in will_use or s == curr]
+        curr_trails = [s for s in seen if s in will_use or s == curr or is_blobid_current(blob_by_id, s)]
+        #print "seen", seen
+        #print "current",[s for s in seen if is_blobid_current(blob_by_id, s)]
+        #print curr_trails
 
         meta_last_trails = dict()
         for t in curr_trails :
@@ -87,7 +92,7 @@ def docview_history_default(handler, doc_id) :
             else :
                 dests.append(())
         # invariant: flattening dests yields 0..len(curr_trails) in increasing order.
-        
+
         if dests :
             change_lines = make_change_string(dests, len(curr_trails))
             history_entries.append((change_lines.replace(" ", "&nbsp;"), None))
@@ -107,6 +112,8 @@ def docview_history_default(handler, doc_id) :
 def make_change_string(dests, num_dest) :
     lines = []
     #print "dests",dests
+    while dests and dests[-1] == () :
+        del dests[-1]
     we_want = zip(range(num_dest))
     while dests != we_want :
         change_line = []

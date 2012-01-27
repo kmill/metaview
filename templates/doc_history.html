@@ -2,15 +2,31 @@
 
 {% block content %}
 {% import blobviews %}
+{% import datetime %}
+{% set last_date = datetime.date.min %}
 <div class="viewframe">
   <h1>Document history</h1>
+  <table>
 {% for prefix,blob in history_entries %}
+    <tr>
+      <td style="padding-right:0.5em;">
+      {% if blob and last_date < blob["doc"]["created"].date() %}
+      {% set last_date = blob["doc"]["created"].date() %}
+	<strong>{{ last_date.strftime("%Y-%m-%d") }}</strong>
+      {% end %}
+      </td>
+      <td style="padding-right:1em;">{% if blob %}{{ blob["doc"]["created"].strftime("%H:%M:%S") }}{% end %}</td>
+    <td>
 <div><tt>{% raw prefix %}</tt>
   {% if blob %}
   {% raw handler.blob_link(blob, "show", "(show)") %}
   {{ blobviews.blob_get_name(blob) }} <em>{{ blob["doc"]["comment"] }}</em>
+  {% if not blob["tags"].get("_masked", False) and not blob["doc"]["deleted"] %}<strong>(current)</strong>{% end %}
   {% end %}
 </div>
+</td>
+</tr>
 {% end %}
+</table>
 </div>
 {% end %}
