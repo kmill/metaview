@@ -348,8 +348,10 @@ class SyncHandler(MVRequestHandler) :
             self.redirect(url)
 
     def do_pull(self, args) :
-        my_docids = list(self.db.doc.find({"blob_base" : args["lblobbase"]}, fields=["_id"]))
-        my_fileids = list(self.db.fs.files.find({"blob_base" : args["lblobbase"]}, fields=["_id"]))
+        my_docids = list(d["_id"]
+                         for d in self.db.doc.find({"blob_base" : args["lblobbase"]}, fields=["_id"]))
+        my_fileids = list(f["_id"]
+                          for f in self.db.fs.files.find({"blob_base" : args["lblobbase"]}, fields=["_id"]))
         to_send = {"synctype" : "pull",
                    "username" : args["username"],
                    "password" : args["password"],
@@ -407,9 +409,9 @@ class SyncProtocolHandler(MVRequestHandler) :
         
         if args["synctype"] == "pull" :
             docs = list(self.db.doc.find({"blob_base" : blob_base,
-                                          "_id" : {"$not" : {"$in" : args["my_docids"]}}}))
+                                          "_id" : {"$nin" : args["my_docids"]}}))
             files = list(self.db.fs.files.find({"blob_base" : blob_base,
-                                                "_id" : {"$not" : {"$in" : args["my_fileids"]}}}))
+                                                "_id" : {"$nin" : args["my_fileids"]}}))
             response = {"docs" : docs,
                         "files" : files}
             self.write(json_encode(response))
