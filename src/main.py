@@ -410,7 +410,7 @@ class SyncHandler(MVRequestHandler) :
                                  upload_date=file["uploadDate"],
                                  filename=file["filename"],
                                  content_type=file["contentType"],
-                                 blob_base=blob_base)
+                                 blob_base=args["lblobbase"])
             try :
                 f.write(response.body)
             except Exception, x :
