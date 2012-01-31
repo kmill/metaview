@@ -420,7 +420,7 @@ class SyncHandler(MVRequestHandler) :
             f.close()
             objects["files"].append(file["_id"])
 
-            self.do_file_pull(args, files, i+1)
+            self.do_file_pull(args, objects, files, i+1)
         return _on_file_pull
 
 
