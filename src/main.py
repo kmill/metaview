@@ -382,13 +382,35 @@ class SyncHandler(MVRequestHandler) :
                 blobs.mask_blob_metadata(blob)
                 blobs.update_blob_metadata(blob)
                 self.write("<p>Added %s</p>" % doc["_id"])
+            http_client = tornado.httpclient.AsyncHTTPClient()
             for file in data["files"] :
-                self.write("<p>Skipping file %s</p>" % file["_id"])
-                pass
+                http_client.fetch("http://%s/file/%s" % (args["servername"], file["_id"]),
+                                  callback=self.on_file_pull(args, file))
             self.write("<p>Done.</p>")
             self.finish()
             return
         return _on_sync_response_pull
+
+    def on_file_pull(self, args, file) :
+        def _on_file_pull(response) :
+            if response.error :
+                self.write("Exception on file %s: %s" % (file["_id"], response.error))
+                self.finish()
+                return
+            f = self.fs.new_file(_id=file["_id"],
+                                 upload_date=file["uploadDate"],
+                                 filename=file["filename"],
+                                 content_type=file["content_type"],
+                                 blob_base=blob_base)
+            try :
+                f.write(response.body)
+            except Exception, x :
+                self.write("Exception on file %s: %s" % (file["_id"], x))
+                self.finish()
+                return
+            f.close()
+            self.write("<p>Added file %s</p>" % file["_id"])
+
 
 class SyncProtocolHandler(MVRequestHandler) :
     def check_xsrf_cookie(self) :
