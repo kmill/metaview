@@ -395,8 +395,11 @@ class SyncHandler(MVRequestHandler) :
         def _on_file_pull(response) :
             if response.error :
                 self.write("Exception on file %s: %s" % (file["_id"], response.error))
+                response.rethrow()
                 self.finish()
                 return
+            print "file",args["_id"]
+            
             f = self.fs.new_file(_id=file["_id"],
                                  upload_date=file["uploadDate"],
                                  filename=file["filename"],
