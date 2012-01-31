@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title2 %} - Sync{% end %}
+
+{% block content %}
+<div class="viewframe">
+  <h1>Sync</h1>
+  {% if errormsg %}
+  <div class="errormsg">
+    {{ errormsg }}
+  </div>
+  {% end %}
+  <form action="/sync" method="post">
+  {% raw xsrf_form_html() %}
+  <div>Local blob base: <input type="textbox" name="lblobbase" value="{{ lblobbase }}"/></div>
+  <div>Remote server: <input type="textbox" name="servername" value="{{ servername }}"/></div>
+  <div>Remote blob base: <input type="textbox" name="rblobbase" value="{{ rblobbase }}"/></div>
+  <div>Remote username: <input type="textbox" name="username" value="{{ username }}"/></div>
+  <div>Password: <input type="password" name="password"/></div>
+  <input type="submit" name="synctype" value="pull" />
+  <input type="submit" name="synctype" value="push" />
+  </form>
+</div>
+{% end %}
