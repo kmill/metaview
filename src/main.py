@@ -382,22 +382,28 @@ class SyncHandler(MVRequestHandler) :
                 blobs.mask_blob_metadata(blob)
                 blobs.update_blob_metadata(blob)
                 self.write("<p>Added %s</p>" % doc["_id"])
-            http_client = tornado.httpclient.AsyncHTTPClient()
-            for file in data["files"] :
-                http_client.fetch("http://%s/file/%s" % (args["servername"], file["_id"]),
-                                  callback=self.on_file_pull(args, file))
-            self.write("<p>Done.</p>")
-            self.finish()
-            return
+            do_file_pull(self, args, data["files"], 0)
         return _on_sync_response_pull
 
-    def on_file_pull(self, args, file) :
+    def do_file_pull(self, args, files, i) :
+        if i < len(files) :
+            file = files[i]
+            http_client = tornado.httpclient.AsyncHTTPClient()
+            http_client.fetch("http://%s/file/%s" % (args["servername"], file["_id"]),
+                              callback=self.on_file_pull(args, files, i))
+        else :
+            self.write("<p>Done.</p>")
+            self.finish()
+
+    def on_file_pull(self, args, files, i) :
         def _on_file_pull(response) :
             if response.error :
                 self.write("Exception on file %s: %s" % (file["_id"], response.error))
                 response.rethrow()
                 self.finish()
                 return
+
+            file = files[i]
             print "file",args["_id"]
             
             f = self.fs.new_file(_id=file["_id"],
@@ -413,6 +419,9 @@ class SyncHandler(MVRequestHandler) :
                 return
             f.close()
             self.write("<p>Added file %s</p>" % file["_id"])
+
+            self.do_file_pull(args, files, i+1)
+    return _on_file_pull
 
 
 class SyncProtocolHandler(MVRequestHandler) :
