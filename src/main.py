@@ -409,7 +409,7 @@ class SyncHandler(MVRequestHandler) :
             f = self.fs.new_file(_id=file["_id"],
                                  upload_date=file["uploadDate"],
                                  filename=file["filename"],
-                                 content_type=file["content_type"],
+                                 content_type=file["contentType"],
                                  blob_base=blob_base)
             try :
                 f.write(response.body)
