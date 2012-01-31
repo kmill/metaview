@@ -381,7 +381,7 @@ class SyncHandler(MVRequestHandler) :
                 blob = blobs.Blob(self.db, doc["_id"], doc=doc)
                 blobs.mask_blob_metadata(blob)
                 blobs.update_blob_metadata(blob)
-                objects["docs"].append(blob)
+                objects["blobs"].append(blob)
             self.do_file_pull(args, objects, data["files"], 0)
         return _on_sync_response_pull
 
@@ -405,7 +405,6 @@ class SyncHandler(MVRequestHandler) :
                 return
 
             file = files[i]
-            print "file",file["_id"]
             
             f = self.fs.new_file(_id=file["_id"],
                                  upload_date=file["uploadDate"],
@@ -431,7 +430,7 @@ class SyncProtocolHandler(MVRequestHandler) :
         pass
     def post(self) :
         args = json_decode(self.request.body)
-        print args
+
         username = args.get("username", "")
         password = str(hashlib.md5(args.get("password", "")).hexdigest())
         blob_base = args.get("blob_base", "")
