@@ -421,7 +421,7 @@ class SyncHandler(MVRequestHandler) :
             self.write("<p>Added file %s</p>" % file["_id"])
 
             self.do_file_pull(args, files, i+1)
-    return _on_file_pull
+        return _on_file_pull
 
 
 class SyncProtocolHandler(MVRequestHandler) :
