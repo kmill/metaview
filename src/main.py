@@ -382,7 +382,7 @@ class SyncHandler(MVRequestHandler) :
                 blobs.mask_blob_metadata(blob)
                 blobs.update_blob_metadata(blob)
                 self.write("<p>Added %s</p>" % doc["_id"])
-            do_file_pull(self, args, data["files"], 0)
+            self.do_file_pull(self, args, data["files"], 0)
         return _on_sync_response_pull
 
     def do_file_pull(self, args, files, i) :
