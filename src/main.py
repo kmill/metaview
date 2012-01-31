@@ -377,8 +377,8 @@ class SyncHandler(MVRequestHandler) :
                 doc["blob_base"] = args["lblobbase"]
                 self.db.doc.insert(doc)
                 blob = blobs.Blob(self.db, doc["_id"], doc=doc)
-                mask_blob_metadata(blob)
-                update_blob_metadata(blob)
+                blobs.mask_blob_metadata(blob)
+                blobs.update_blob_metadata(blob)
                 self.write("<p>Added %s</p>" % doc["_id"])
             for file in data["files"] :
                 self.write("<p>Skipping file %s</p>" % file["_id"])
@@ -394,6 +394,7 @@ class SyncProtocolHandler(MVRequestHandler) :
         pass
     def post(self) :
         args = json_decode(self.request.body)
+        print args
         username = args.get("username", "")
         password = str(hashlib.md5(args.get("password", "")).hexdigest())
         blob_base = args.get("blob_base", "")
@@ -405,12 +406,15 @@ class SyncProtocolHandler(MVRequestHandler) :
             raise tornado.web.HTTPError(403)
         
         if args["synctype"] == "pull" :
-            docs = self.db.doc.find({"blob_base" : blob_base,
-                                     "$not" : {"$in" : args["my_docids"]}})
-            files = self.db.doc.find({"blob_base" : blob_base,
-                                     "$not" : {"$in" : args["my_fileids"]}})
-            self.write(json_encode({"docs" : list(docs),
-                                    "files" : list(files)}))
+            docs = list(self.db.doc.find({"blob_base" : blob_base,
+                                          "_id" : {"$not" : {"$in" : args["my_docids"]}}}))
+            files = list(self.db.fs.files.find({"blob_base" : blob_base,
+                                                "_id" : {"$not" : {"$in" : args["my_fileids"]}}}))
+            response = {"docs" : docs,
+                        "files" : files}
+            self.write(json_encode(response))
+        else :
+            raise tornado.web.HTTPError(405)
         
 
 class MVApplication(tornado.web.Application) :
