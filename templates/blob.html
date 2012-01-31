@@ -13,6 +13,7 @@
       <span class="blob_actions">
       actions:
       {% raw handler.blob_link(blob, "show") %}
+      {% raw handler.get_doc_link(blob["doc"]["doc_id"], "show", "(doc)") %}
       {% raw handler.get_doc_link(blob["doc"]["doc_id"], "history") %}
       {% raw handler.blob_link(blob, "delete") %}
       {% raw handler.reply_to_blob_link(blob) %}

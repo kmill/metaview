@@ -72,6 +72,18 @@ entity_replace = { "<" : "&lt;",
 def parse_paragraph(text) :
     i = 0
     output = []
+
+    # first see if there is a marker at the beginning of the paragraph
+    
+    if text.startswith("[ ]") :
+        output.append("<input type=\"checkbox\" />")
+        i += 3
+    elif text.startswith("[X]") :
+        output.append("<input type=\"checkbox\" checked=\"yes\" />")
+        i += 3
+
+    # then continue with the rest
+
     entity_re = re.compile(r"&(#x?)?[0-9A-Za-z]+;") # cheating :-)
     verbatim_re = re.compile(r"`([^\s].*?[^\s])`")
     italic1_re = re.compile(r"_([^\s].*?[^\s])_")
@@ -80,18 +92,27 @@ def parse_paragraph(text) :
     html_re = re.compile(r"</?\w+.*?>")
     plain_re = re.compile(r"[A-Za-z0-9\s]+")
     latex_escape_re = re.compile(r"\$.*?[^\\]\$")
+    #url_re = re.compile(r"\b(https?|ftp|file)://[-A-Z0-9+&@#/%?=~_|!:,.;]*[A-Z0-9+&@#/%=~_|]", re.IGNORECASE)
+
+    # http://www.regexguru.com/2008/11/detecting-urls-in-a-block-of-text/
+    url_re_safeurl = r"(?:(?:https?|ftp|file)://|www\.|ftp\.)[-A-Z0-9+&@#/%?=~_|$!:,.;]*[-A-Z0-9+&@#/%=~_|$]"
+    url_re_email = r"(?:mailto:)?[A-Z0-9._%+-]+@[A-Z0-9._%-]+\.[A-Z]{2,4}\b"
+    url_re_dquoteurl = r"\"(?:(?:https?|ftp|file)://|www\.|ftp\.)[^\"\r\n]+\""
+    url_re_quoteurl = r"'(?:(?:https?|ftp|file)://|www\.|ftp\.)[^'\r\n]+'"
+    url_re = re.compile(r"(\s*)\b(?:(%s)|(%s))|(%s|%s)" % (url_re_safeurl, url_re_email, url_re_dquoteurl, url_re_quoteurl), re.IGNORECASE)
+
     while i < len(text) :
         if text[i] == "\\" :
             output.append(text[i+1])
             i += 2
             continue
         match = entity_re.match(text, i)
-        if match and match.start() == i :
+        if match :
             output.append(match.group(0))
             i += len(match.group(0))
             continue
         match = html_re.match(text, i)
-        if match and match.start() == i :
+        if match :
             output.append(match.group(0))
             i += len(match.group(0))
             continue
@@ -99,33 +120,43 @@ def parse_paragraph(text) :
             output.append(entity_replace[text[i]])
             i += 1
             continue
+        # now that we've removed the html, we don't have to worry
+        # about touching a url inside an anchor tag
+        match = url_re.match(text, i)
+        if match :
+            email = match.group(3)
+            url = tornado.escape.xhtml_escape(match.group(2) or match.group(4) or ("mailto:"+email))
+            url_text = tornado.escape.xhtml_escape(match.group(2) or match.group(4) or email)
+            output.append("%s<a href=\"%s\">%s</a>" % (match.group(1) or "", url, url_text))
+            i += len(match.group(0))
+            continue
         match = bold_re.match(text, i)
-        if match and match.start() == i :
+        if match :
             output.append("<strong>%s</strong>" % parse_paragraph(match.group(1)))
             i += len(match.group(0))
             continue
         match = italic2_re.match(text, i)
-        if match and match.start() == i :
+        if match :
             output.append("<em>%s</em>" % parse_paragraph(match.group(1)))
             i += len(match.group(0))
             continue
         match = italic1_re.match(text, i)
-        if match and match.start() == i :
+        if match :
             output.append("<em>%s</em>" % parse_paragraph(match.group(1)))
             i += len(match.group(0))
             continue
         match = verbatim_re.match(text, i)
-        if match and match.start() == i :
+        if match :
             output.append("<code>%s</code>" % tornado.escape.xhtml_escape(match.group(1)))
             i += len(match.group(0))
             continue
         match = latex_escape_re.match(text, i)
-        if match and match.start() == i :
+        if match :
             output.append(match.group(0))
             i += len(match.group(0))
             continue
         match = plain_re.match(text, i)
-        if match and match.start() == i :
+        if match :
             output.append(match.group(0))
             i += len(match.group(0))
             continue
@@ -156,7 +187,7 @@ def get_line_prefix(line) :
         return (0, prelen, "heading", match.group(2), match.group(4))
     # is it a list?
     # using -?
-    match = re.match(r"^((\s*)(-)(\s*))(.*)$", line)
+    match = re.match(r"^((\s*)(-)(\s*))([^-].*|[^-]?)$", line)
     if match :
         prelen = len(match.group(1))
         return (len(match.group(2)), prelen, "list", match.group(1), match.group(5))
@@ -288,7 +319,7 @@ def parse_structure(line_data) :
             out = "<h%s>%s</h%s>" % (headingnum, headingtext, headingnum)
             data.append(out)
         elif ld[2] == "list" :
-            print "top level list!?"
+            #print "top level list!?"
             line_num, out = parse_list_structure(line_data, line_num)
             data.append(out)
         else :

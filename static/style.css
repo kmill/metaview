@@ -207,6 +207,14 @@ div.blob_deleted {
     margin-right: 1em;
 }
 
+div.errormsg {
+    margin-bottom: 1em;
+    padding: 1em;
+    border-style: solid;
+    border-width: 2px;
+    border-color: #e33;
+}
+
 /* from http://www.barelyfitz.com/projects/tabber/ */
 .tabberlive .tabbertabhide {
     display:none;

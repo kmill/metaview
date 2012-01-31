@@ -20,8 +20,6 @@ try :
 except getpass.GetPassWarning :
     print "\nYour terminal is echoing the password."
 
-print repr(password1)
-
 if password1 != password2 :
     print "Passwords do not match."
     exit(1)

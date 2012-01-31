@@ -3,6 +3,7 @@ import tornado.web as web
 import tornado.escape
 import tornado.template
 import tornado.httputil
+import tornado.httpclient
 import httplib
 
 import pymongo
@@ -62,6 +63,12 @@ class MVRequestHandler(tornado.web.RequestHandler) :
             return None
         user = res[0]
         return user
+    def get_user_blob_bases(self, username=None) :
+        if not username :
+            return [self.current_user["blob_base"]]
+        else :
+            res = list(self.db.users.find({"username", username}))
+            return [r["blob_base"] for r in res]
 
     def get_blob(self, blobid) :
         return blobs.Blob(self.db, blobid)
@@ -277,6 +284,91 @@ class BlobModule(tornado.web.UIModule) :
         print "BlobModule; blob.id =",blob.id
         return blobviews.blob_views[action](self, blob, data.copy())
 
+class SyncHandler(MVRequestHandler) :
+    @tornado.web.authenticated
+    def get(self) :
+        args = {"lblobbase" : self.get_argument("lblobbase", ""),
+                "servername" : self.get_argument("servername", ""),
+                "rblobbase" : self.get_argument("rblobbase", ""),
+                "username" : self.get_argument("username", ""),
+                "errormsg" : self.get_argument("errormsg", None)}
+        self.render("sync.html", **args)
+    @tornado.web.authenticated
+    def post(self) :
+        args = {"lblobbase" : self.get_argument("lblobbase", ""),
+                "servername" : self.get_argument("servername", ""),
+                "rblobbase" : self.get_argument("rblobbase", ""),
+                "username" : self.get_argument("username", ""),
+                "password" : self.get_argument("password", "")}
+        if not args["lblobbase"] :
+            url = tornado.httputil.url_concat("/sync",
+                                              dict(errormsg="Missing local blob base",
+                                                   **args))
+            self.redirect(url)
+            return
+        if args["lblobbase"] not in self.get_user_blob_bases() :
+            url = tornado.httputil.url_concat("/sync",
+                                              dict(errormsg="That local blob base is not accessible.",
+                                                   **args))
+            self.redirect(url)
+            return
+        if not args["servername"] :
+            url = tornado.httputil.url_concat("/sync",
+                                              dict(errormsg="Missing server name",
+                                                   **args))
+            self.redirect(url)
+            return
+        if not args["rblobbase"] :
+            url = tornado.httputil.url_concat("/sync",
+                                              dict(errormsg="Missing remote blob base",
+                                                   **args))
+            self.redirect(url)
+            return
+        if not args["username"] :
+            url = tornado.httputil.url_concat("/sync",
+                                              dict(errormsg="Missing remote username",
+                                                   **args))
+            self.redirect(url)
+            return
+        self.write(args)
+
+        my_ids = self.db.doc.find({"blob_base" : args["lblobbase"]}, fields=["_id"])
+        to_send = {"username" : args["username"],
+                   "password" : args["password"],
+                   "blob_base" : args["rblobbase"],
+                   "my_ids" : [str(e["_id"] for e in my_ids)]}
+
+        request = tornado.httpclient.HTTPRequest("http://%s/syncprotocol" % args["servername"],
+                                                 method="POST",
+                                                 headers={"Content-Type" : "application/json"},
+                                                 body=tornado.escape.json_encode(to_send))
+        http_client = tornado.httpclient.HTTPClient()
+        try :
+            response = http_client.fetch(request)
+        except tornado.httpclient.HTTPError, e:
+            url = tornado.httputil.url_concat("/sync",
+                                              dict(errormsg="Exception: "+str(e),
+                                                   **args))
+            self.redirect(url)
+            return
+        
+        self.write(response.body)
+
+class SyncProtocolHandler(MVRequestHandler) :
+    def post(self) :
+        username = self.get_argument("username", "")
+        password = self.get_argument("password", "")
+        blob_base = self.get_argument("blobbase", "")
+        
+        res = list(self.db.users.find({"username" : username, "password" : password}))
+        if not res :
+            raise tornado.web.HTTPError(405)
+        if blob_base not in self.get_user_blob_bases(username=username) :
+            raise tornado.web.HTTPError(405)
+        
+        self.write("Got it.")
+
+
 class MVApplication(tornado.web.Application) :
     def __init__(self) :
         self.db = pymongo.Connection()['metaview']
@@ -304,6 +396,8 @@ class MVApplication(tornado.web.Application) :
             (r"/bb/(\w*)/(.*)", BlobBaseHandler),
             (r"/login", LoginHandler),
             (r"/logout", LogoutHandler),
+            (r"/sync", SyncHandler),
+            (r"/syncprotocol", SyncProtocolHandler),
             (r"/rebuild", RebuildHandler),
             ]
         
