@@ -404,7 +404,7 @@ class SyncHandler(MVRequestHandler) :
                 return
 
             file = files[i]
-            print "file",args["_id"]
+            print "file",file["_id"]
             
             f = self.fs.new_file(_id=file["_id"],
                                  upload_date=file["uploadDate"],
