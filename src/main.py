@@ -9,6 +9,8 @@ import httplib
 import pymongo
 import gridfs
 import gridfs.errors
+import pymongo.json_util as json_util
+import json
 
 import uuid
 import base64
@@ -27,6 +29,11 @@ def random256() :
     return base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes)
 
 PORTNUM = 8222
+
+def json_encode(obj) :
+    return json.dumps(obj, default=json_util.default)
+def json_decode(s) :
+    return json.loads(s, object_hook=json_util.object_hook)
 
 class MVRequestHandler(tornado.web.RequestHandler) :
     @property
@@ -67,7 +74,7 @@ class MVRequestHandler(tornado.web.RequestHandler) :
         if not username :
             return [self.current_user["blob_base"]]
         else :
-            res = list(self.db.users.find({"username", username}))
+            res = list(self.db.users.find({"username" : username}))
             return [r["blob_base"] for r in res]
 
     def get_blob(self, blobid) :
@@ -293,6 +300,7 @@ class SyncHandler(MVRequestHandler) :
                 "username" : self.get_argument("username", ""),
                 "errormsg" : self.get_argument("errormsg", None)}
         self.render("sync.html", **args)
+    @tornado.web.asynchronous
     @tornado.web.authenticated
     def post(self) :
         args = {"lblobbase" : self.get_argument("lblobbase", ""),
@@ -330,44 +338,80 @@ class SyncHandler(MVRequestHandler) :
                                                    **args))
             self.redirect(url)
             return
-        self.write(args)
 
-        my_ids = self.db.doc.find({"blob_base" : args["lblobbase"]}, fields=["_id"])
-        to_send = {"username" : args["username"],
+        if self.get_argument("synctype") == "push" :
+            self.do_push(args)
+        elif self.get_argument("synctype") == "pull" :
+            self.do_pull(args)
+        else :
+            url = tornado.httputil.url_concat("/sync", args)
+            self.redirect(url)
+
+    def do_pull(self, args) :
+        my_docids = list(self.db.doc.find({"blob_base" : args["lblobbase"]}, fields=["_id"]))
+        my_fileids = list(self.db.fs.files.find({"blob_base" : args["lblobbase"]}, fields=["_id"]))
+        to_send = {"synctype" : "pull",
+                   "username" : args["username"],
                    "password" : args["password"],
                    "blob_base" : args["rblobbase"],
-                   "my_ids" : [str(e["_id"] for e in my_ids)]}
+                   "my_docids" : my_docids,
+                   "my_fileids" : my_fileids}
 
         request = tornado.httpclient.HTTPRequest("http://%s/syncprotocol" % args["servername"],
                                                  method="POST",
                                                  headers={"Content-Type" : "application/json"},
-                                                 body=tornado.escape.json_encode(to_send))
-        http_client = tornado.httpclient.HTTPClient()
-        try :
-            response = http_client.fetch(request)
-        except tornado.httpclient.HTTPError, e:
-            url = tornado.httputil.url_concat("/sync",
-                                              dict(errormsg="Exception: "+str(e),
-                                                   **args))
-            self.redirect(url)
+                                                 body=json_encode(to_send))
+        http_client = tornado.httpclient.AsyncHTTPClient()
+        http_client.fetch(request, callback=self.on_sync_response_pull(args))
+
+    def on_sync_response_pull(self, args) :
+        def _on_sync_response_pull(response) :
+            if response.error :
+                url = tornado.httputil.url_concat("/sync",
+                                                  dict(errormsg="Exception: "+str(response.error),
+                                                       **args))
+                self.redirect(url)
+                return
+            data = json_decode(response.body)
+            for doc in data["docs"] :
+                doc["blob_base"] = args["lblobbase"]
+                self.db.doc.insert(doc)
+                blob = blobs.Blob(self.db, doc["_id"], doc=doc)
+                mask_blob_metadata(blob)
+                update_blob_metadata(blob)
+                self.write("<p>Added %s</p>" % doc["_id"])
+            for file in data["files"] :
+                self.write("<p>Skipping file %s</p>" % file["_id"])
+                pass
+            self.write("<p>Done.</p>")
+            self.finish()
             return
-        
-        self.write(response.body)
+        return _on_sync_response_pull
 
 class SyncProtocolHandler(MVRequestHandler) :
+    def check_xsrf_cookie(self) :
+        """Override"""
+        pass
     def post(self) :
-        username = self.get_argument("username", "")
-        password = self.get_argument("password", "")
-        blob_base = self.get_argument("blobbase", "")
-        
+        args = json_decode(self.request.body)
+        username = args.get("username", "")
+        password = str(hashlib.md5(args.get("password", "")).hexdigest())
+        blob_base = args.get("blob_base", "")
+
         res = list(self.db.users.find({"username" : username, "password" : password}))
         if not res :
-            raise tornado.web.HTTPError(405)
+            raise tornado.web.HTTPError(403)
         if blob_base not in self.get_user_blob_bases(username=username) :
-            raise tornado.web.HTTPError(405)
+            raise tornado.web.HTTPError(403)
         
-        self.write("Got it.")
-
+        if args["synctype"] == "pull" :
+            docs = self.db.doc.find({"blob_base" : blob_base,
+                                     "$not" : {"$in" : args["my_docids"]}})
+            files = self.db.doc.find({"blob_base" : blob_base,
+                                     "$not" : {"$in" : args["my_fileids"]}})
+            self.write(json_encode({"docs" : list(docs),
+                                    "files" : list(files)}))
+        
 
 class MVApplication(tornado.web.Application) :
     def __init__(self) :

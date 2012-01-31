@@ -52,13 +52,15 @@ def create_fileblob(handler, doc) :
 
 def put_file_into_db(handler, form_input, doc) :
     if form_input :
+        blob_base = handler.get_argument("blob_base", handler.current_user["blob_base"])
         file_id = uuid.uuid4()
         file_data = form_input[0]
         file_name = file_data.get("filename", None)
         file_type = file_data.get("content_type", "text/plain")
         f = handler.fs.new_file(_id=file_id,
                                 filename=file_name,
-                                content_type=file_type)
+                                content_type=file_type,
+                                blob_base=blob_base)
         try :
             f.write(file_data["body"])
         except Exception :
