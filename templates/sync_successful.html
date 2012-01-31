@@ -11,9 +11,9 @@
   <p>Pulled the following objects:</p>
   {% import blobviews %}
   {% import datetime %}
-  {% set last_date = datetime.date.max %}
+  {% set last_date = datetime.date.min %}
   {% for blob in objects["blobs"] %}
-    {% if last_date > blob["doc"]["created"].date() %}
+    {% if last_date < blob["doc"]["created"].date() %}
      {% if last_date != datetime.date.max %}</table>{% end %}
      {% set last_date = blob["doc"]["created"].date() %}
      <h2>{{ last_date.strftime("%b %d %Y") }}</h2><table class="recentchanges">
