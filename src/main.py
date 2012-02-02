@@ -492,7 +492,7 @@ class SyncHandler(MVRequestHandler) :
                 response.rethrow()
                 self.finish()
                 return
-            self.do_push_files(args, {"blobs" : list(blobs.Blob(d["_id"], doc=d) for d in docs),
+            self.do_push_files(args, {"blobs" : list(blobs.Blob(self.db, d["_id"], doc=d) for d in docs),
                                       "files" : []},
                                files, 0)
         return _on_docs_pushed
