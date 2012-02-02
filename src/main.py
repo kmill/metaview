@@ -467,8 +467,8 @@ class SyncHandler(MVRequestHandler) :
             their_ids = json_decode(response.body)
             docs = list(self.db.doc.find({"blob_base" : args["lblobbase"],
                                           "_id" : {"$in" : their_ids["new_docids"]}}))
-            files = list(self.db.doc.find({"blob_base" : args["lblobbase"],
-                                           "_id" : {"$in" : their_ids["new_fileids"]}}))
+            files = list(self.db.fs.files.find({"blob_base" : args["lblobbase"],
+                                                "_id" : {"$in" : their_ids["new_fileids"]}}))
             http_client = tornado.httpclient.AsyncHTTPClient()
             if docs :
                 to_send = {"synctype" : "pushdocs",
@@ -504,9 +504,9 @@ class SyncHandler(MVRequestHandler) :
             to_send = {"synctype" : "pushfile",
                        "username" : args["username"],
                        "password" : args["password"],
-                       "blob_base" : args["rblob_base"],
+                       "blob_base" : args["rblobbase"],
                        "file" : file,
-                       "file_contents" : self.fs.get(file["_id"]).read()}
+                       "file_contents" : base64.b64encode(self.fs.get(file["_id"]).read())}
 
             request = tornado.httpclient.HTTPRequest("http://%s/syncprotocol" % args["servername"],
                                                      method="POST",
@@ -586,7 +586,7 @@ class SyncProtocolHandler(MVRequestHandler) :
                                  content_type=file["contentType"],
                                  blob_base=args["blob_base"])
             try :
-                f.write(args["file_contents"])
+                f.write(base64.b64decode(args["file_contents"]))
             except Exception, x :
                 f.close()
                 raise tornado.web.HTTPError(500, "Error with writing file to database")
