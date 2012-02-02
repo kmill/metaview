@@ -6,9 +6,9 @@
 <div class="viewframe">
   <h1>Sync</h1>
   {% if not objects["blobs"] %}
-  <p>No objects were pulled</p>
+  <p>No objects were {{sync_type}}ed.</p>
   {% else %}
-  <p>Pulled the following objects:</p>
+  <p>{{ sync_type.title()}}ed the following objects:</p>
   {% import blobviews %}
   {% import datetime %}
   {% set last_date = datetime.date.min %}

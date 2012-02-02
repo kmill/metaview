@@ -294,20 +294,32 @@ class BlobModule(tornado.web.UIModule) :
 class SyncHandler(MVRequestHandler) :
     @tornado.web.authenticated
     def get(self) :
-        args = {"lblobbase" : self.get_argument("lblobbase", ""),
-                "servername" : self.get_argument("servername", ""),
-                "rblobbase" : self.get_argument("rblobbase", ""),
-                "username" : self.get_argument("username", ""),
+        last_server = self.current_user.get("last_sync_server", {})
+        args = {"lblobbase" : self.get_argument("lblobbase", last_server.get("lblobbase", "")),
+                "servername" : self.get_argument("servername", last_server.get("servername", "")),
+                "rblobbase" : self.get_argument("rblobbase", last_server.get("rblobbase", "")),
+                "username" : self.get_argument("username", last_server.get("username", "")),
+                "has_password" : (not self.get_argument("errormsg", False)
+                                  and last_server.get("password", False) and True),
                 "errormsg" : self.get_argument("errormsg", None)}
         self.render("sync.html", **args)
     @tornado.web.asynchronous
     @tornado.web.authenticated
     def post(self) :
+        last_server = self.current_user.get("last_sync_server", {})
         args = {"lblobbase" : self.get_argument("lblobbase", ""),
                 "servername" : self.get_argument("servername", ""),
                 "rblobbase" : self.get_argument("rblobbase", ""),
                 "username" : self.get_argument("username", ""),
                 "password" : self.get_argument("password", "")}
+        if args["servername"] == last_server["servername"] \
+                and args["rblobbase"] == last_server["rblobbase"] \
+                and args["username"] == last_server["username"] \
+                and args["password"] in ["", "default"] :
+            # this is a bug (what if password is "" or "default"? [but
+            # it shouldn't])
+            args["password"] = last_server["password"]
+        # bug: redirect involves password in plain text!
         if not args["lblobbase"] :
             url = tornado.httputil.url_concat("/sync",
                                               dict(errormsg="Missing local blob base",
@@ -338,6 +350,8 @@ class SyncHandler(MVRequestHandler) :
                                                    **args))
             self.redirect(url)
             return
+
+        self.db.users.update({"_id" : self.current_user["_id"]}, {"$set" : {"last_sync_server" : args }})
 
         if self.get_argument("synctype") == "push" :
             self.do_push(args)
@@ -393,8 +407,8 @@ class SyncHandler(MVRequestHandler) :
                               callback=self.on_file_pull(args, objects, files, i))
         else :
             objects["blobs"].sort(key=lambda x:x["created"])
-            self.render("sync_successful.html", objects=objects)
-            self.finish()
+            self.render("sync_successful.html", objects=objects, sync_type="pull")
+            return
 
     def on_file_pull(self, args, objects, files, i) :
         def _on_file_pull(response) :
@@ -418,10 +432,104 @@ class SyncHandler(MVRequestHandler) :
                 self.finish()
                 return
             f.close()
-            objects["files"].append(file["_id"])
+            Objects["files"].append(file["_id"])
 
             self.do_file_pull(args, objects, files, i+1)
         return _on_file_pull
+
+    def do_push(self, args) :
+        my_docids = list(d["_id"]
+                         for d in self.db.doc.find({"blob_base" : args["lblobbase"]}, fields=["_id"]))
+        my_fileids = list(f["_id"]
+                          for f in self.db.fs.files.find({"blob_base" : args["lblobbase"]}, fields=["_id"]))
+        to_send = {"synctype" : "prepush",
+                   "username" : args["username"],
+                   "password" : args["password"],
+                   "blob_base" : args["rblobbase"],
+                   "my_docids" : my_docids,
+                   "my_fileids" : my_fileids}
+
+        request = tornado.httpclient.HTTPRequest("http://%s/syncprotocol" % args["servername"],
+                                                 method="POST",
+                                                 headers={"Content-Type" : "application/json"},
+                                                 body=json_encode(to_send))
+        http_client = tornado.httpclient.AsyncHTTPClient()
+        http_client.fetch(request, callback=self.on_sync_response_push(args))
+
+    def on_sync_response_push(self, args) :
+        def _on_sync_response_push(response) :
+            if response.error :
+                url = tornado.httputil.url_concat("/sync",
+                                                  dict(errormsg="Exception: "+str(response.error),
+                                                       **args))
+                self.redirect(url)
+                return
+            their_ids = json_decode(response.body)
+            docs = list(self.db.doc.find({"blob_base" : args["lblobbase"],
+                                          "_id" : {"$in" : their_ids["new_docids"]}}))
+            files = list(self.db.doc.find({"blob_base" : args["lblobbase"],
+                                           "_id" : {"$in" : their_ids["new_fileids"]}}))
+            http_client = tornado.httpclient.AsyncHTTPClient()
+            if docs :
+                to_send = {"synctype" : "pushdocs",
+                           "username" : args["username"],
+                           "password" : args["password"],
+                           "blob_base" : args["rblobbase"],
+                           "docs" : docs}
+                request = tornado.httpclient.HTTPRequest("http://%s/syncprotocol" % args["servername"],
+                                                         method="POST",
+                                                         headers={"Content-Type" : "application/json"},
+                                                         body=json_encode(to_send))
+                http_client.fetch(request, callback=self.on_docs_pushed(args, docs, files))
+            else :
+                self.do_push_files(args, {"blobs" : [], "files" : []}, files, 0)
+        return _on_sync_response_push
+
+    def on_docs_pushed(self, args, docs, files) :
+        def _on_docs_pushed(response) :
+            if response.error :
+                self.write("Exception when pushing docs: %s" % response.error)
+                response.rethrow()
+                self.finish()
+                return
+            self.do_push_files(args, {"blobs" : list(blobs.Blob(d["_id"], doc=d) for d in docs),
+                                      "files" : []},
+                               files, 0)
+        return _on_docs_pushed
+
+    def do_push_files(self, args, objects, files, i) :
+        if i < len(files) :
+            file = files[i]
+
+            to_send = {"synctype" : "pushfile",
+                       "username" : args["username"],
+                       "password" : args["password"],
+                       "blob_base" : args["rblob_base"],
+                       "file" : file,
+                       "file_contents" : self.fs.get(file["_id"]).read()}
+
+            request = tornado.httpclient.HTTPRequest("http://%s/syncprotocol" % args["servername"],
+                                                     method="POST",
+                                                     headers={"Content-Type" : "application/json"},
+                                                     body=json_encode(to_send))
+
+            http_client = tornado.httpclient.AsyncHTTPClient()
+            http_client.fetch(request, callback=self.on_file_pushed(args, objects, files, i))
+        else :
+            objects["blobs"].sort(key=lambda x:x["created"])
+            self.render("sync_successful.html", objects=objects, sync_type="push")
+            return
+    def on_file_pushed(self, args, objects, files, i) :
+        def _on_file_pushed(response) :
+            file = files[i]
+            if response.error :
+                self.write("Exception when pushing file %s: %s" % (["_id"], response.error))
+                response.rethrow()
+                self.finish()
+                return
+            objects["files"].append(file)
+            self.do_push_files(args, objects, files, i+1)
+        return _on_file_pushed
 
 
 class SyncProtocolHandler(MVRequestHandler) :
@@ -449,6 +557,41 @@ class SyncProtocolHandler(MVRequestHandler) :
             response = {"docs" : docs,
                         "files" : files}
             self.write(json_encode(response))
+            return
+        elif args["synctype"] == "prepush" :
+            their_docids = args["my_docids"]
+            their_fileids = args["my_fileids"]
+            my_docids = set(d["_id"]
+                            for d in self.db.doc.find({"blob_base" : args["blob_base"]}, fields=["_id"]))
+            my_fileids = set(f["_id"]
+                             for f in self.db.fs.files.find({"blob_base" : args["blob_base"]}, fields=["_id"]))
+            their_new_docids = [d for d in their_docids if d not in my_docids]
+            their_new_fileids = [f for f in their_fileids if f not in my_fileids]
+            response = {"new_docids" : their_new_docids,
+                        "new_fileids" : their_new_fileids}
+            self.finish(json_encode(response))
+            return
+        elif args["synctype"] == "pushdocs" :
+            for doc in args["docs"] :
+                doc["blob_base"] = args["blob_base"]
+                self.db.doc.insert(doc)
+                blob = blobs.Blob(self.db, doc["_id"], doc=doc)
+                blobs.mask_blob_metadata(blob)
+                blobs.update_blob_metadata(blob)
+                objects["blobs"].append(blob)
+        elif args["synctype"] == "pushfile" :
+            file = args["file"]
+            f = self.fs.new_file(_id=file["_id"],
+                                 upload_date=file["uploadDate"],
+                                 filename=file["filename"],
+                                 content_type=file["contentType"],
+                                 blob_base=args["blob_base"])
+            try :
+                f.write(args["file_contents"])
+            except Exception, x :
+                f.close()
+                raise tornado.web.HTTPError(500, "Error with writing file to database")
+            f.close()
         else :
             raise tornado.web.HTTPError(405)
         
