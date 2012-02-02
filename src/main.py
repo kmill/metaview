@@ -578,7 +578,6 @@ class SyncProtocolHandler(MVRequestHandler) :
                 blob = blobs.Blob(self.db, doc["_id"], doc=doc)
                 blobs.mask_blob_metadata(blob)
                 blobs.update_blob_metadata(blob)
-                objects["blobs"].append(blob)
         elif args["synctype"] == "pushfile" :
             file = args["file"]
             f = self.fs.new_file(_id=file["_id"],
