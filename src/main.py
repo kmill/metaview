@@ -312,13 +312,13 @@ class SyncHandler(MVRequestHandler) :
                 "rblobbase" : self.get_argument("rblobbase", ""),
                 "username" : self.get_argument("username", ""),
                 "password" : self.get_argument("password", "")}
-        if args["servername"] == last_server["servername"] \
-                and args["rblobbase"] == last_server["rblobbase"] \
-                and args["username"] == last_server["username"] \
+        if args["servername"] == last_server.get("servername", None) \
+                and args["rblobbase"] == last_server.get("rblobbase", None) \
+                and args["username"] == last_server.get("username", None) \
                 and args["password"] in ["", "default"] :
             # this is a bug (what if password is "" or "default"? [but
             # it shouldn't])
-            args["password"] = last_server["password"]
+            args["password"] = last_server.get("password", None)
         # bug: redirect involves password in plain text!
         if not args["lblobbase"] :
             url = tornado.httputil.url_concat("/sync",
