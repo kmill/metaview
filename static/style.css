@@ -25,7 +25,7 @@ a:hover {
 #header {
     padding: 3px 1em 2px 1em;
     background: #ddf;
-    font-family: "helvetica" "arial" "sans-serif";
+    font-family: "helvetica", "arial", "sans-serif";
     border-style: solid;
     border-width: 1px 0 1px 0;
     border-color: #bbd;
@@ -78,7 +78,7 @@ div.viewframe {
 div.viewframe h1 {
     margin-top: 0.1em;
     margin-bottom: 0.3em;
-    font-family: "helvetica" "arial" "sans-serif";
+    font-family: "helvetica", "arial", "sans-serif";
     font-size: 180%;
 }
 
@@ -98,7 +98,7 @@ div.blob_header {
     padding: 1px 1em 2px 1em;
     font-size: 50%;
     background: #ddf;
-    font-family: "helvetica" "arial" "sans-serif";
+    font-family: "helvetica", "arial", "sans-serif";
     border-style: solid;
     border-width: 0px 0 1px 0;
     border-color: #bbd;
@@ -110,7 +110,7 @@ div.blob_footer {
     padding: 0 0 1px 0;
     font-size: 50%;
     color: #ccc;
-    font-family: "helvetica" "arial" "sans-serif";
+    font-family: "helvetica", "arial", "sans-serif";
 }
 div.blob_header_left {
     float: left;
@@ -126,7 +126,7 @@ div.blob_header span.blob_actions a {
 div.blob_content h1 {
     margin-top: 0.1em;
     margin-bottom: 0.3em;
-    font-family: "helvetica" "arial" "sans-serif";
+    font-family: "helvetica", "arial", "sans-serif";
     font-size: 180%;
 }
 
