@@ -100,7 +100,7 @@ def edit_post_blob_default(handler, blob, a_data) :
     if handler.get_argument("blob_id", "") != str(blob.id) :
         raise HTTPError(405)
     blob["doc"]["comment"] = handler.get_argument("comment", "")
-    blob = blobs.update_blob(blob)
+    blob = blobs.update_blob(handler.get_user_identifier(long=True), blob)
     handler.redirect(handler.get_blob_url(blob))
     return "<p>Saved.</p>"
 
@@ -121,7 +121,7 @@ def delete_blob_default(handler, blob, a_data) :
 def delete_blob_default(handler, blob, a_data) :
     if handler.get_argument("blob_id", "") != str(blob.id) :
         raise HTTPError(405)
-    blob2 = blobs.delete_blob(blob)
+    blob2 = blobs.delete_blob(handler.get_user_identifier(long=True), blob)
     handler.render("blob_deleted.html", blob=blob, blob2=blob2)
 
 

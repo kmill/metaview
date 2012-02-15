@@ -13,6 +13,8 @@ def parse_markup(text) :
     line_data = []
     reading_tags = True
 
+    # We first take the first lines which start with @ and treat them
+    # as tags until a non-tag line starts
     tag_ident = re.compile(r"([a-zA-Z0-9][a-zA-Z0-9_]*)")
     while line_num < len(lines) :
         line = lines[line_num].rstrip()

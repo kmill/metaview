@@ -84,6 +84,7 @@ def create_blob_default(handler, doc) :
     except ValueError :
         reply_to = None
     doc.update({"_id" : blob_id, # the unique id of this entry
+                "modifier" : handler.get_user_identifier(long=True),
                 "deleted" : False,
                 "doc_id" : doc_id, # the id of the new document
                 "blob_base" : blob_base,
@@ -102,11 +103,12 @@ def create_blob_default(handler, doc) :
 #
 
 @update_blob.add_action
-def update_blob_default(blob) :
+def update_blob_default(user, blob) :
     newblob_id = uuid.uuid4()
     oldblob_id = blob.id
     blob.id = newblob_id
     blob["doc"].update({"_id" : newblob_id,
+                        "modifier" : user,
                         "previous_version" : oldblob_id,
                         "created" : datetime.datetime.now(), # update when this blob was created
                         })
@@ -120,11 +122,12 @@ def update_blob_default(blob) :
 #
 
 @delete_blob.add_action
-def delete_blob_default(blob) :
+def delete_blob_default(user, blob) :
     newblob_id = uuid.uuid4()
     oldblob_id = blob.id
     blob.id = newblob_id
     new_doc = {"_id" : newblob_id,
+               "modifier" : user,
                "doc_id" : blob["doc"]["doc_id"],
                "blob_base" : blob["doc"]["blob_base"],
                "deleted" : True,
@@ -152,7 +155,7 @@ def mask_blob_metadata_tag(blob) :
     raise DeferAction()
 
 #
-# update_blob
+# update_blob_metadata
 #
 
 @update_blob_metadata.add_action

@@ -29,6 +29,7 @@ def random256() :
     return base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes)
 
 PORTNUM = 8222
+SERVER_NAME = "kmill.mit.edu"
 
 def json_encode(obj) :
     return json.dumps(obj, default=json_util.default)
@@ -70,6 +71,13 @@ class MVRequestHandler(tornado.web.RequestHandler) :
             return None
         user = res[0]
         return user
+    def get_user_identifier(self, long=False) :
+        """The long identifier is what is stored in the database: it
+        is username@servername"""
+        if long :
+            return "%s@%s" % (self.current_user["username"], SERVER_NAME)
+        else :
+            return self.current_user["username"]
     def get_user_blob_bases(self, username=None) :
         if not username :
             return [self.current_user["blob_base"]]

@@ -29,7 +29,10 @@
       {% raw content %}
     {% end %}
     <div class="blob_footer">
-      doc id: {{doc_id}} / blob id: {{blob_id}} / blob base: {{blob["doc"]["blob_base"]}}
+      {{blob["doc"]["modifier"]}}
+      / blob base: {{blob["doc"]["blob_base"]}}
+      / blob id: {{blob_id}}
+      / doc id: {{doc_id}}
     </div>
   </div>
 </div>

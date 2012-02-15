@@ -25,7 +25,10 @@ def docview_show_default(handler, doc_id) :
     entries = handler.db.tags.find({"_doc_id" : doc_id, "_masked" : False}).sort([("created", -1)])
     the_blobs = list(blobs.Blob.tags_to_blobs(handler.db, entries))
     if not the_blobs :
-        raise HTTPError(404)
+        entries = handler.db.tags.find({"_doc_id" : doc_id}).sort([("created", -1)])
+        the_blobs = list(blobs.Blob.tags_to_blobs(handler.db, entries))
+        if not the_blobs :
+            raise HTTPError(404)
     handler.write(handler.render_string("doc_view.html",
                                         the_blobs=the_blobs,
                                         replies=render_blob_replies(handler, the_blobs[0])))
