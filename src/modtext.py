@@ -9,13 +9,17 @@ from tornado.httpclient import HTTPError
 import uuid
 import markup
 
+format_tag_value = ActionList(doc="""Lets one format the value of a
+   tag appropriately when rendering the page.""")
+
+
 #
 # adding a "text" blob type
 #
 blobs.blob_types.append("text")
 
 def get_prepared_tags_for_db(text) :
-    tags, tag_html, html = markup.parse_markup(text)
+    tags, tag_data, html = markup.parse_markup(text)
     new_tags = dict()
     for key,values in tags.iteritems() :
         if type(values) == list :
@@ -66,8 +70,8 @@ def create_textblob(handler, doc) :
 @blob_to_html.add_action
 def textblob_to_html(render_string, blob, a_data) :
     action_assert(blob["doc"]["type"] == "text")
-    tags, tag_html, html = markup.parse_markup(blob["doc"]["text_content"])
-    a_data["content"] = a_data.get("content", "")+tag_html+html
+    tags, tag_data, html = markup.parse_markup(blob["doc"]["text_content"])
+    a_data["content"] = a_data.get("content", "")+markup.parse_tags(format_tag_value, blob, *tag_data)+html
     raise DeferAction()
 
 #
@@ -78,7 +82,7 @@ def textblob_to_html(render_string, blob, a_data) :
 def blob_get_name_default(blob, default=None) :
     tags = blob["tags"]
     if tags and "title" in tags :
-        return tags["title"]
+        return "@title " + (tags["title"][0] if type(tags["title"]) is list else tags["title"])
     raise DeferAction()
 
 #
@@ -117,3 +121,12 @@ def create_view_textblob(handler, blob_type, blob_base, a_data) :
                                               prior_content=prior_content,
                                               text_content="")
     raise DeferAction()
+
+
+###
+### Tags
+###
+
+@format_tag_value.add_action
+def format_tag_value_default(blob, key, values) :
+    return True, values

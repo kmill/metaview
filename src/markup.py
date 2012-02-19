@@ -44,9 +44,9 @@ def parse_markup(text) :
         else :
             line_data.append(get_line_prefix(line))
             line_num += 1
-    return tags, parse_tags(keys, tags), parse_structure(line_data)
+    return tags, (keys, tags), parse_structure(line_data)
 
-def parse_tags(keys, tags) :
+def parse_tags(format_callback, blob, keys, tags) :
     out = []
     if "title" in keys :
         title = tags["title"]
@@ -60,9 +60,11 @@ def parse_tags(keys, tags) :
             values = tags[key]
             if type(values) is not list :
                 values = [values]
-            for v in values :
-                out.append("<tr><th>%s</th><td>%s</td></tr>" % (tornado.escape.xhtml_escape(key),
-                                                                tornado.escape.xhtml_escape(v)))
+            doit, values = format_callback(blob, key, values)
+            if doit :
+                for v in values :
+                    out.append("<tr><th>%s</th><td>%s</td></tr>" % (tornado.escape.xhtml_escape(key),
+                                                                    tornado.escape.xhtml_escape(v)))
         out.append("</table>")
     return "\n".join(out)
 

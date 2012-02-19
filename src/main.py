@@ -642,6 +642,7 @@ class MVApplication(tornado.web.Application) :
 #
 import modtext
 import modfile
+import modtodo
 
 if __name__=="__main__" :
     print "Starting metaview..."
