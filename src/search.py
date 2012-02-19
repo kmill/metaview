@@ -26,35 +26,31 @@
 #         the_blobs = list(blobs.Blob.find_by_tags(self.db, search, sort))
 #         self.render("search.html", the_blobs=the_blobs, query=query)
 
-
-from funcparserlib.lexer import make_tokenizer, Token, LexerError
-from funcparserlib.parser import (a, maybe, many, skip, eof,
-                                  fwd, ParserError)
+from mparserlib.lexer import *
+from mparserlib.parser import *
+import operator
 
 string_regexps = {
     'squote' : r"'(\\[\\'\"]|[^'])*'",
     'dquote' : r"\"(\\[\\'\"]|[^\"])*\"",
     }
 
-lex_specs = [
-    ('Space',  (r'[ \t\r\n]+',)),
-    ('String', (r'%(squote)s|%(dquote)s' % string_regexps,)),
-    ('Symbol', (r'\$[A-Za-z]+',)),
-    ('Text',   (r'[A-Za-z_0-9]+',)),
-    ('Punctuation', (r'[(){}:,]',))
-    ]
-
-def tokenizer(str, t=make_tokenizer(lex_specs)) :
-    useless = ['Space']
-    return [x for x in t(str) if x.type not in useless]
+lexer = Lexer([
+        Spec(None,  r'[ \t\r\n]+|//.*'), # whitespace
+        Spec('string', r'%(squote)s|%(dquote)s' % string_regexps),
+        Spec('symbol', r'\$[A-Za-z]+'),
+        Spec('text', r'[A-Za-z_0-9]+'),
+        Spec('punctuation', r'[(){}:,]'),
+        Spec('op', r'[=<>]+'),
+        ])
 
 const = lambda x : lambda _ : x
 unarg = lambda f : lambda x : f(*x)
 tokval = lambda x: x.value
-toktype = lambda t : some(lambda x: x.type == t) >> tokval
+tokkind = lambda k : satisfy(lambda x: x.kind == k).expectsMsg(k) >> tokval
 
-symb = lambda s : a(Token('Symbol', s)) >> tokval
-punct = lambda s : skip(a(Token('Punctuation', s)))
+symb = lambda s : a(Token('symbol', s)).expectsMsg(repr(s))
+punct = lambda s : skip(a(Token('punctuation', s))).expectsMsg(repr(s))
 
 def unescape(s) :
     """Unescapes a string which is surrounded in quotes."""
@@ -73,26 +69,64 @@ def unescape(s) :
             i = j
     return "".join(out)
 
-expr = fwd
+def makeBinOp(opdict, next) :
+    """Takes a dict of opsymbol->binaryfunction pairs and creates
+    a left-associative parser for them."""
+    def eval(first, rest) :
+        for f, v in rest :
+            first = f(first, v)
+        return first
+    op = reduce(operator.or_, [k >> const(v) for k,v in opdict.iteritems()])
+    return (next + many((op + next) >> tuple)) \
+        >> unarg(eval)
+def makeBinOps(ops, last) :
+    next = last
+    for prec in ops :
+        if prec :
+            next = makeBinOp(prec, next)
+    return next
 
-text = many((toktype("String") >> unescape) | (toktype("Text"))) >> " ".join
 
-cexpr = punct(",") + expr
-parens = punct("(") + expr + many(cexpr) + punct(")")
+def binop(name) :
+    def _binop(a,b) :
+        return [name, a, b]
+    return _binop
+
+ops = [{symb("$has") : binop("$has"), symb("$after") : binop("$after")},
+       {symb("$and") : binop("$and")},
+       {symb("$or") : binop("$or")}
+       ]
+
+expr = FwdDecl()
+
+text = many1((tokkind("string") >> unescape) | (tokkind("text"))) >> " ".join
+
+qtuple = between(punct("("), punct(")"), sepby(expr, punct(",")))
+
+parens = between(punct("("), punct(")"), expr)
+
+func = (tokkind("symbol") + qtuple) >> list
+
+nullary = text | parens | func
+
+binops = makeBinOps(ops, nullary)
+
+expr.define(binops)
 
 top_level = expr + eof
 
-expr.define(text | parens)
-
 try :
     t = r"(tags $has 'recipe') $and (created $after $date(2 feb 2012))"
-    t = "(hi, there)"
-    tokens = tokenizer(t)
-    print "tokens:",tokens
-    print "parsed:",top_level.parse(tokens)
+#    t = "(hello, there)"
+    tokens = list(lexer.tokenize(t))
+    print "tokens:", tokens
+    parsed = expr.parse(tokens)
+    print "parsed:", parsed
 except LexerError as x :
     print "Lexer error"
     row, column = x.pos
     line = t.split("\n")[row-1]
     print line
     print " "*(column) + "^"
+except ParserError as x :
+    print str(x)
