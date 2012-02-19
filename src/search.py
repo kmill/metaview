@@ -92,9 +92,9 @@ def binop(name) :
         return [name, a, b]
     return _binop
 
-ops = [{symb("$has") : binop("$has"), symb("$after") : binop("$after")},
-       {symb("$and") : binop("$and")},
-       {symb("$or") : binop("$or")}
+ops = [{symb("$has") : binop("has"), symb("$after") : binop("after"), symb("$is") : binop("is")},
+       {symb("$and") : binop("and")},
+       {symb("$or") : binop("or")}
        ]
 
 expr = FwdDecl()
@@ -105,7 +105,7 @@ qtuple = between(punct("("), punct(")"), sepby(expr, punct(",")))
 
 parens = between(punct("("), punct(")"), expr)
 
-func = (tokkind("symbol") + qtuple) >> list
+func = (tokkind("symbol") + qtuple) >> unarg(lambda s, args : [s[1:]]+list(args))
 
 nullary = text | parens | func
 
@@ -115,18 +115,22 @@ expr.define(binops)
 
 top_level = expr + eof
 
-try :
-    t = r"(tags $has 'recipe') $and (created $after $date(2 feb 2012))"
-#    t = "(hello, there)"
-    tokens = list(lexer.tokenize(t))
-    print "tokens:", tokens
-    parsed = expr.parse(tokens)
-    print "parsed:", parsed
-except LexerError as x :
-    print "Lexer error"
-    row, column = x.pos
-    line = t.split("\n")[row-1]
-    print line
-    print " "*(column) + "^"
-except ParserError as x :
-    print str(x)
+#    t = r"(tags $has 'recipe') $and (created $after $date(2 feb 2012))"
+#    t = ""
+
+if __name__=="__main__" :
+    while True :
+        t = raw_input("> ")
+        try :
+            tokens = list(lexer.tokenize(t))
+            #print "tokens:", tokens
+            parsed = expr.parse(tokens)
+            print "parsed:", parsed
+        except LexerError as x :
+            print "Lexer error"
+            row, column = x.pos
+            line = t.split("\n")[row-1]
+            print line
+            print " "*(column) + "^"
+        except ParserError as x :
+            print str(x)
