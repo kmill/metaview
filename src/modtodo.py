@@ -17,7 +17,7 @@ import datetime
 
 import modtext
 
-todo_date_fields = ["deadline"]
+todo_date_fields = ["deadline", "date"]
 event_date_fields = [("date", "created"),
                      ("until", "date")]
 

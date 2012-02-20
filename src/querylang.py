@@ -258,12 +258,14 @@ def q_neq(key, value) :
 def q_in(key, value) :
     """(field $in value) for (field in values)"""
     key, value = require_type("value", key, value)
+    value = list(require_type("value", *value))
     return ("query", {key : {"$in" : value}})
 
 @add_to_env(env, "all")
 def q_all(key, value) :
     """(field $all value) for (field has all values)"""
     key, value = require_type("value", key, value)
+    value = list(require_type("value", *value))
     return ("query", {key : {"$all" : value}})
 
 @add_to_env(env, "not")

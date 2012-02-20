@@ -68,10 +68,10 @@ div.clear {
 }
 
 #footer {
-    text-align: center;
+    /*text-align: center;*/
     font-size: 80%;
     width: 768px;
-    padding: 0 1em 2em 1em;
+    padding: 0 1em 2em 3em;
 }
 
 div.viewframe {
@@ -316,4 +316,50 @@ td.qtableshow {
     font-size: 50%;
     vertical-align: middle;
     margin-right: 0.5em;
+}
+
+table.rcalendar {
+    font-size: 90%;
+    border-spacing: 1px;
+}
+
+table.rcalendar tr {
+    padding: 0;
+    margin: 0;
+}
+
+table.rcalendar td, table.rcalendar th {
+    width: 105px;
+    margin: 0;
+}
+
+table.rcalendar td {
+    border-width: 1px;
+    border-color: #bbd;
+    border-style: solid;
+    margin: 0;
+    vertical-align: top;
+    padding-bottom: 0.5em;
+    background-color: white;
+}
+
+div.rcalendardate {
+    font-family: "Helvetica", "arial", sans-serif;
+    font-size: 50%;
+    margin-bottom: 0.5em;
+}
+
+table.rcalendar td.rcalendardatetoday {
+    border-color: #000;
+    background-color: #f6f6ff;
+}
+
+div.rcalendarentry {
+    font-size: 90%;
+    border-color: #ccc;
+    border-width: 1px 0 1px 0;
+    border-style: solid;
+    background-color: white;
+    margin-top: 1px;
+    padding: 1px 1px 1px 1px;
 }
