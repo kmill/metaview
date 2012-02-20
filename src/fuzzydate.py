@@ -12,6 +12,7 @@ lexer = Lexer([
         Spec(None,  r'[\s,]+'), # whitespace (note comma!)
         Spec(None, r'today|now'), # remove since blank string means today
         Spec("relative", r'(last|next)\s+[A-Za-z]+', re.IGNORECASE),
+        Spec("relative2", r'(\+|-)\d+\s*(h|d|w|m|y)[A-Za-z]*', re.IGNORECASE),
         Spec("hms", r'\d+:\d+:\d+'),
         Spec("hm", r'\d+:\d+'),
         Spec("mdy", r'\d+/\d+/\d+'),
@@ -191,13 +192,22 @@ def parse_tokens(toks, currdate) :
                             break
                     else :
                         raise DateFormatException("Unknown relative", value)
+        elif kind=="relative2" :
+            m = re.match(r"(\+|-)(\d+)\s*(h|d|w|m|y).*", value.lower())
+            direction = -1 if m.group(1) == "-" else 1
+            n = int(m.group(2))
+            s = m.group(3)
+            rel_lookup = {"h" : "deltahour",
+                          "d" : "deltaday", "w" : "deltaweek",
+                          "m" : "deltamonth", "y" : "deltayear"}
+            try_append(data, [(rel_lookup[s], direction*n)])
+            continue
         else :
             raise DateFormatException("Unknown",kind,value)
     return data
 
 def eval_data(data, currdate) :
     """Takes the result of parse_token and figures out the date."""
-    print data
     year = None
     month = None
     day = None
@@ -314,6 +324,22 @@ def eval_data(data, currdate) :
                 hour += 12
         valid.update({"minute" : True, "second" : False})
         invalid.update({"minute" : True, "second" : True})
+    if "deltahour" in data :
+        if not valid["hour"] : raise DateFormatException("delta hour specificity requires a day")
+        if hour is None :
+            hour = currdate.hour
+        if day is None :
+            day = currdate.day
+        if month is None :
+            month = currdate.month
+        if year is None :
+            year = currdate.year
+        nextdate = datetime.datetime(year,month,day,hour) + \
+            datetime.timedelta(hours=data["deltahour"])
+        hour, day, month, year = nextdate.hour, nextdate.day, nextdate.month, nextdate.year
+        minute, second = currdate.minute, currdate.second
+        valid.update({"minute" : True, "second" : False})
+        invalid.update({"minute" : True, "second" : True})
     if "minute" in data :
         if not valid["minute"] : raise DateFormatException("minute specificity requires an hour")
         minute = data["minute"]
@@ -368,7 +394,10 @@ def parse_date(s, currdate) :
 
     Errors in the input raise a DateFormatException with a
     semi-explanation."""
-    return eval_data(parse_tokens(lexer.tokenize(s), currdate), currdate)
+    try :
+        return eval_data(parse_tokens(lexer.tokenize(s), currdate), currdate)
+    except LexerError as x :
+        raise DateFormatException("lexer error",s)
 
 
 if __name__=="__main__" :

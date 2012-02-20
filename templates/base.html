@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="{{ static_url("style.css") }}" type="text/css" />
 <script type="text/x-mathjax-config">
 MathJax.Hub.Config({
-  tex2jax: {inlineMath: [['$','$']]}
+  tex2jax: {inlineMath: [['$','$']], processEscapes: true}
 });
 </script>
 <script type="text/javascript" src="{{ static_url("jquery-1.7.1.min.js") }}"></script>
@@ -44,6 +44,10 @@ function clickrecall(inp) {
     <div class="clear"></div>
   </div>
   <div id="content">{% block content %}{% end %}</div>
+  <div id="footer">
+    {% import datetime %}
+    {{ datetime.datetime.now().strftime("%a, %b %e %Y, %l:%M %p") }}
+  </div>
 </div>
 </body>
 </html>

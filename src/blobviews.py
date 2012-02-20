@@ -47,11 +47,14 @@ def blob_get_name_default(blob, default=None) :
 
 @blob_to_html.add_action
 def blob_to_html_default(render_string, blob, a_data) :
+    has_replies = 0 < len(list(blob.db.tags.find({"_reply_to" : blob["doc"]["doc_id"],
+                                                  "_masked" : False}, fields=["_id"])))
     d = {"blob_id" : blob.id,
          "doc_id" : blob["doc"]["doc_id"],
-         "created" : blob["doc"]["created"].strftime("%b %d %Y %I:%M:%S %p"),
+         "created" : blob["doc"]["created"].strftime("%a, %b %e %Y, %l:%M:%S %p"), #%b %d %Y %I:%M:%S %p"),
          "content" : a_data.get("content", "<center><p><em>Unknown blob type!</em></p></center>"),
          "blob" : blob,
+         "has_replies" : has_replies,
          "a_data" : a_data,
          }
     return render_string("blob.html", **d)
@@ -76,7 +79,9 @@ def render_blob_replies(handler, blob, top=False) :
     else :
         suffix = "\n".join(render_blob_replies(handler, b) for b in blobs.Blob.tags_to_blobs(handler.db, res))
     return "%s\n<div class=\"blob_reply\">%s</div>" % \
-        (blob_to_html(handler.render_string, blob, {"suppress_reply_to_data" : not top}), suffix)
+        (blob_to_html(handler.render_string, blob, {"suppress_has_reply" : True,
+                                                    "suppress_reply_to_data" : not top}),
+         suffix)
 
 #
 # action: edit

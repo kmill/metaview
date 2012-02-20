@@ -25,7 +25,7 @@ class Token(object) :
     def __repr__(self) :
         return "Token(%r, %r, pos=%r)" % (self.kind, self.value, self.pos)
     def __str__(self) :
-        return "%s %r" % (self.kind, self.value)
+        return "%s \"%s\"" % (self.kind, self.value)
     def __eq__(self, other) :
         return (type(self) == type(other)
                 and self.kind == other.kind

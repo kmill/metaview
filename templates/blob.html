@@ -2,6 +2,9 @@
   <div class="blob_header">
     <div class="blob_header_left">
       {{created}}
+      {% if not a_data.get("suppress_has_reply", False) and has_replies %}
+        {% raw handler.blob_link(blob, "show", "[has reply]") %}
+      {% end %}
       {% if not a_data.get("suppress_reply_to_data", False) and blob["doc"].get("reply_to", None) %}
         {% raw handler.get_doc_link(blob["doc"]["reply_to"], "show", "[a reply]") %}
       {% end %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+ {% if the_blobs %}
+  {% for blob in the_blobs %}
+   {% module BlobModule(blob, "show") %}
+  {% end %}
+ {% else %}
+  <div class="errormsg">There is no page whose title is "Home"</div>
+ {% end %}
+{% end %}

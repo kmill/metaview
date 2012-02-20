@@ -9,7 +9,7 @@ from tornado.httpclient import HTTPError
 import uuid
 import markup
 
-from modtext import get_prepared_tags_for_db
+from modtext import get_prepared_tags_for_db, format_tag_value
 
 #
 # adding a "file" blob type
@@ -82,14 +82,21 @@ def put_file_into_db(handler, form_input, doc) :
 # blob_to_html
 #
 
+import modtext
+
 @blobviews.blob_to_html.add_action
 def fileblob_to_html(render_string, blob, a_data) :
+    do_query = modtext.make_query_maker(render_string, blob)
     action_assert(blob["doc"]["type"] == "file")
-    tags, tag_html, html = markup.parse_markup(blob["doc"]["text_content"])
+    tags, tag_data, html = markup.parse_markup(blob["doc"]["text_content"], {
+            "blobbase" : blob["doc"]["blob_base"],
+            "query" : do_query,
+            })
     a_data["content"] = render_string("fileblob.html",
                                       blob=blob,
                                       prior_content=a_data.get("content", ""),
-                                      content=tag_html+html)
+                                      content= \
+                                          markup.parse_tags(format_tag_value, blob, *tag_data)+html)
     raise DeferAction()
 
 #

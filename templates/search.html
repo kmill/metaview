@@ -5,10 +5,5 @@
 {% block search_string %}{{ query }}{% end %}
 
 {% block content %}
- {% if not the_blobs %}
-  <p>No results.</p>
- {% end %}
- {% for blob in the_blobs %}
-  {% module BlobModule(blob, "show") %}
- {% end %}
+  {% raw res %}
 {% end %}

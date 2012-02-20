@@ -67,6 +67,13 @@ div.clear {
     width: 768px;
 }
 
+#footer {
+    text-align: center;
+    font-size: 80%;
+    width: 768px;
+    padding: 0 1em 2em 1em;
+}
+
 div.viewframe {
     border-style: solid;
     border-width: 1px;
@@ -281,3 +288,32 @@ ul.tabbernav li.tabberactive a:hover {
 .dochistorytable table td {margin: 0; padding: 0; border-width: 0; border-spacing: 0;}
 
 .dochistorytable tt { font-weight: bold; }
+
+div.queryerror {
+    margin-bottom: 1em;
+    padding: 1em;
+    border-style: solid;
+    border-width: 2px;
+    border-color: #e33;
+}
+
+table.qtable {
+    font-size: 90%;
+    margin-left: 0.4em;
+    margin-top: 0.3em;
+    margin-bottom: 0.5em;
+}
+
+table.qtable th {
+}
+
+table.qtable td {
+    padding: 0.2em 0.4em 0.2em 0.3em;
+}
+
+td.qtableshow {
+    font-family: "Helvetica", "arial", sans-serif;
+    font-size: 50%;
+    vertical-align: middle;
+    margin-right: 0.5em;
+}

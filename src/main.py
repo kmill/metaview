@@ -25,6 +25,8 @@ import blobviews
 import bbviews
 import docviews
 
+import querylang
+
 def random256() :
     return base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes)
 
@@ -117,6 +119,17 @@ class MVRequestHandler(tornado.web.RequestHandler) :
 class MainHandler(MVRequestHandler) :
     @tornado.web.authenticated
     def get(self) :
+        blob_base = self.current_user["blob_base"]
+        the_blobs = list(blobs.Blob.find_by_tags(self.db, {"title" : "Home",
+                                                           "blob_base" : blob_base,
+                                                           "_masked" : False}))
+        self.render("main.html",
+                    the_blobs=the_blobs)
+
+
+class MainTestHandler(MVRequestHandler) :
+    @tornado.web.authenticated
+    def get(self) :
         self.render("main_test.html",
                     the_blobs=blobs.Blob.find_by_tags(self.db, {"_reply_to" : None,
                                                                 "_masked" : False}))
@@ -175,30 +188,37 @@ class CreateHandler(MVRequestHandler) :
         blob = blobs.create_blob(self, {})
         self.redirect(self.get_blob_url(blob))
 
+import qrenderers
+
 class SearchHandler(MVRequestHandler) :
     @tornado.web.authenticated
     def get(self, blob_base) :
-        search = { "blob_base" : blob_base, "_masked" : False }
-        sort = [("created", -1)]
-        query = self.get_argument("q", "")
-        parts = query.split(",")
-        for part in parts :
-            if part :
-                kv = part.split("=", 2)
-                if len(kv) == 1 :
-                    k, v = "tag", kv[0]
-                else :
-                    k, v = kv
-                if k[0] == "<" :
-                    k = k[1:]
-                    sort.append((k,1))
-                if k[0] == ">" :
-                    k = k[1:]
-                    sort.append((k,-1))
-                search[k] = v.strip() #{ "$regex" : v, "$options" : 'i' }
-        print search, sort
-        the_blobs = list(blobs.Blob.find_by_tags(self.db, search, sort))
-        self.render("search.html", the_blobs=the_blobs, query=query)
+        q = self.get_argument("q", "")
+        res = querylang.run_query(self.render_string, self.db, qrenderers.renderers,
+                                  blob_base, q)
+        self.render("search.html", query=q, res=res)
+
+#         try :
+#             t, mongoquery = querylang.translate_query(query)
+#             if t != "query" :
+#                 raise querylang.QueryError("Query is not an expression")
+#             mongoquery.update(search_defaults)
+#             the_blobs = list(blobs.Blob.find_by_tags(self.db, mongoquery, sort))
+#             self.render("search.html", the_blobs=the_blobs, query=query, error=None)
+#         except mparserlib.lexer.LexerError as x :
+#             out = []
+#             out.append("<p><strong>Lexer error</strong></p>")
+#             row, column = x.pos
+#             line = query.split("\n")[row-1]
+#             out.append("<pre>"+tornado.escape.xhtml_escape(line)+"\n")
+#             out.append(" "*(column) + "^</pre>")
+#             self.render("search.html", query=query, error="".join(out))
+#         except mparserlib.parser.ParserError as x :
+#             error = "<p><strong>Parser error</strong></p>" + str(x).replace("\n", "<br/>")
+#             self.render("search.html", query=query, error=error)
+#         except querylang.QueryError as x :
+#             error = "<p><strong>Query error</strong></p>" + str(x).replace("\n", "<br/>")
+#             self.render("search.html", query=query, error=error)
 
 class BlobBaseHandler(MVRequestHandler) :
     @tornado.web.authenticated
@@ -269,7 +289,7 @@ class FileHandler(MVRequestHandler) :
 
             self.write(f.read())
             self.flush()
-            print "wrote"
+            #print "wrote file"
             return
         except (gridfs.errors.NoFile, ValueError) :
             raise tornado.web.HTTPError(404)
@@ -296,7 +316,7 @@ class BlobModule(tornado.web.UIModule) :
         return self.handler.application.fs
 
     def render(self, blob, action, **data) :
-        print "BlobModule; blob.id =",blob.id
+        #print "BlobModule; blob.id =",blob.id
         return blobviews.blob_views[action](self, blob, data.copy())
 
 class SyncHandler(MVRequestHandler) :
@@ -621,6 +641,7 @@ class MVApplication(tornado.web.Application) :
         
         handlers = [
             (r"/", MainHandler),
+            (r"/maintest", MainTestHandler),
             (r"/file/(.*)", FileHandler),
             (r"/doc/(.*)", DocHandler),
             (r"/blob/(.*)", BlobHandler),

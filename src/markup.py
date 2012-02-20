@@ -2,9 +2,11 @@
 # January 2011, Kyle Miller
 
 import tornado.escape
+import tornado.httputil
 import re
 
-def parse_markup(text) :
+def parse_markup(text, data) :
+    """data is a dictionary containing: blobbase"""
     lines = text.splitlines()
     line_num = 0
     tags = dict()
@@ -42,9 +44,34 @@ def parse_markup(text) :
             else :
                 reading_tags = False
         else :
-            line_data.append(get_line_prefix(line))
-            line_num += 1
-    return tags, (keys, tags), parse_structure(line_data)
+            if line == "<query>" :
+                query = []
+                line_num += 1
+                error = None
+                while True :
+                    if line_num >= len(lines) :
+                        error = "Missing end tag for query."
+                        break
+                    line = lines[line_num]
+                    line_num += 1
+                    if line.strip() == "</query>" :
+                        break
+                    else :
+                        query.append(line)
+                try :
+                    line_data.append(get_line_prefix(
+                            data["query"]("\n".join(query)),
+                            verbatim=True))
+                except Exception as x :
+                    error = x.args[0]
+                if error :
+                    line_data.append(get_line_prefix(
+                            "<div class=\"queryerror\">"+error+"</div>",
+                            verbatim=True))
+            else :
+                line_data.append(get_line_prefix(line))
+                line_num += 1
+    return tags, (keys, tags), parse_structure(line_data, data)
 
 def parse_tags(format_callback, blob, keys, tags) :
     out = []
@@ -73,7 +100,7 @@ entity_replace = { "<" : "&lt;",
                    "&" : "&amp;",
                    }
 
-def parse_paragraph(text) :
+def parse_paragraph(text, data) :
     i = 0
     output = []
 
@@ -105,10 +132,19 @@ def parse_paragraph(text) :
     url_re_quoteurl = r"'(?:(?:https?|ftp|file)://|www\.|ftp\.)[^'\r\n]+'"
     url_re = re.compile(r"(\s*)\b(?:(%s)|(%s))|(%s|%s)" % (url_re_safeurl, url_re_email, url_re_dquoteurl, url_re_quoteurl), re.IGNORECASE)
 
+    query_re = re.compile(r"<\|(.+?)\|>(\[(.+?)\])?")
+
     while i < len(text) :
         if text[i] == "\\" :
-            output.append(text[i+1])
-            i += 2
+            if i+1 < len(text) :
+                if text[i+1] == "$" : # for math mode
+                    output.append(text[i:i+2])
+                else :
+                    output.append(text[i+1])
+                i += 2
+            else :
+                output.append(text[i])
+                i += 1
             continue
         match = entity_re.match(text, i)
         if match :
@@ -118,6 +154,14 @@ def parse_paragraph(text) :
         match = html_re.match(text, i)
         if match :
             output.append(match.group(0))
+            i += len(match.group(0))
+            continue
+        match = query_re.match(text, i)
+        if match :
+            query = tornado.httputil.url_concat("/search/"+data["blobbase"],
+                                                {"q" : match.group(1)})
+            caption = tornado.escape.xhtml_escape(match.group(3) or query)
+            output.append("<a href=\"%s\">%s</a>" % (query, caption))
             i += len(match.group(0))
             continue
         if text[i] in "<>&" :
@@ -136,17 +180,17 @@ def parse_paragraph(text) :
             continue
         match = bold_re.match(text, i)
         if match :
-            output.append("<strong>%s</strong>" % parse_paragraph(match.group(1)))
+            output.append("<strong>%s</strong>" % parse_paragraph(match.group(1), data))
             i += len(match.group(0))
             continue
         match = italic2_re.match(text, i)
         if match :
-            output.append("<em>%s</em>" % parse_paragraph(match.group(1)))
+            output.append("<em>%s</em>" % parse_paragraph(match.group(1), data))
             i += len(match.group(0))
             continue
         match = italic1_re.match(text, i)
         if match :
-            output.append("<em>%s</em>" % parse_paragraph(match.group(1)))
+            output.append("<em>%s</em>" % parse_paragraph(match.group(1), data))
             i += len(match.group(0))
             continue
         match = verbatim_re.match(text, i)
@@ -182,8 +226,10 @@ def parse_paragraph(text) :
                 
     return "".join(output)
 
-def get_line_prefix(line) :
+def get_line_prefix(line, verbatim=False) :
     """returns (indent, prefix-length, type, prefix, text)"""
+    if verbatim :
+        return (0, 0, "verbatim", "", line)
     # is it a heading?
     match = re.match(r"^((==+)(\s*))(.*)$", line)
     if match :
@@ -210,7 +256,7 @@ def get_line_prefix(line) :
     prelen = len(match.group(1))
     return (prelen, prelen, None, "", match.group(2))
 
-def parse_par_structure(line_data, line_num, force_paragraph=True) :
+def parse_par_structure(data, line_data, line_num, force_paragraph=True) :
     indent = line_data[line_num][1]
     par_type = line_data[line_num][2]
     prefix = line_data[line_num][3]
@@ -222,7 +268,7 @@ def parse_par_structure(line_data, line_num, force_paragraph=True) :
         if ld == (0, 0, None, "", "") : # paragraph break
             blocks.append(None)
             if curr_lines :
-                blocks.append(("p", parse_paragraph(" ".join(curr_lines))))
+                blocks.append(("p", parse_paragraph(" ".join(curr_lines), data)))
                 curr_lines = []
             line_num += 1
         elif (ld[0] == indent and ld[2] == None) or (start_line == line_num and ld[2] == "list") : # normal line in paragraph
@@ -232,7 +278,7 @@ def parse_par_structure(line_data, line_num, force_paragraph=True) :
         elif ld[0] > indent and ld[2] == None :
             # code block
             if curr_lines :
-                blocks.append(("p-before", parse_paragraph(" ".join(curr_lines))))
+                blocks.append(("p-before", parse_paragraph(" ".join(curr_lines), data)))
                 curr_lines = []
             code = []
             code_indent = ld[0]
@@ -249,25 +295,25 @@ def parse_par_structure(line_data, line_num, force_paragraph=True) :
             break
         elif ld[2] == "list" and ld[0] >= indent :
             if curr_lines :
-                blocks.append(("p-before", parse_paragraph(" ".join(curr_lines))))
+                blocks.append(("p-before", parse_paragraph(" ".join(curr_lines), data)))
                 curr_lines = []
-            line_num, out = parse_list_structure(line_data, line_num)
+            line_num, out = parse_list_structure(data, line_data, line_num)
             blocks.append((None, out))
         elif ld[2] == "quote" and ld[0] >= indent :
             if curr_lines :
-                blocks.append(("p-before", parse_paragraph(" ".join(curr_lines))))
+                blocks.append(("p-before", parse_paragraph(" ".join(curr_lines), data)))
                 curr_lines = []
             quote_prefix = ld[3]
             quote_line_data = []
             while line_num < len(line_data) and quote_prefix == line_data[line_num][3] :
                 quote_line_data.append(line_data[line_num][4])
                 line_num += 1
-            quote_text = parse_structure(quote_line_data)
+            quote_text = parse_structure(quote_line_data, data)
             blocks.append((None, "<blockquote>%s</blockquote>" % quote_text))
         else :
             break
     if curr_lines :
-        blocks.append(("p", parse_paragraph(" ".join(curr_lines))))
+        blocks.append(("p", parse_paragraph(" ".join(curr_lines), data)))
     if len(blocks) == 0 :
         return line_num, ""
     elif len(blocks) == 1 and not force_paragraph :
@@ -295,22 +341,25 @@ def parse_par_structure(line_data, line_num, force_paragraph=True) :
                 outblocks.append(block[1])
         return line_num, "\n\n".join(outblocks)
 
-def parse_list_structure(line_data, line_num) :
+def parse_list_structure(data, line_data, line_num) :
     prefix = line_data[line_num][3]
     items = []
     while line_num < len(line_data) and line_data[line_num][3] == prefix :
-        line_num, out = parse_par_structure(line_data, line_num, force_paragraph=False)
+        line_num, out = parse_par_structure(data, line_data, line_num, force_paragraph=False)
         items.append("<li>%s</li>" % out)
     return line_num, ("<ul>\n%s\n</ul>" % "\n".join(items))
 
-def parse_structure(line_data) :
+def parse_structure(line_data, cdata) :
     line_num = 0
     data = []
     while line_num < len(line_data) :
         ld = line_data[line_num]
         if ld[2] == None :
-            line_num, out = parse_par_structure(line_data, line_num)
+            line_num, out = parse_par_structure(cdata, line_data, line_num)
             data.append(out)
+        elif ld[2] == "verbatim" :
+            data.append(ld[4])
+            line_num += 1
         elif ld[2] == "heading" :
             headingnum = len(ld[3])
             depth = ld[1]
@@ -319,12 +368,12 @@ def parse_structure(line_data) :
             while line_num < len(line_data) and line_data[line_num][0] == depth :
                 headingtext.append(line_data[line_num][4])
                 line_num += 1
-            headingtext = parse_paragraph(" ".join(headingtext))
+            headingtext = parse_paragraph(" ".join(headingtext), cdata)
             out = "<h%s>%s</h%s>" % (headingnum, headingtext, headingnum)
             data.append(out)
         elif ld[2] == "list" :
             #print "top level list!?"
-            line_num, out = parse_list_structure(line_data, line_num)
+            line_num, out = parse_list_structure(cdata, line_data, line_num)
             data.append(out)
         else :
             print "?"

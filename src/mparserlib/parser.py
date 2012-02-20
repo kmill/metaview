@@ -4,7 +4,8 @@
 import itertools
 
 __all__ = ["ParserError", "FwdDecl", "a", "between", "constp", "emptyp", "eof",
-           "many", "many1", "satisfy", "sepby", "sepby1", "skip"]
+           "many", "many1", "satisfy", "sepby", "sepby1", "skip",
+           "tryp", "lookahead"]
 
 class ParserError(Exception) :
     def __init__(self, i, pos, unexpected, expecting) :
@@ -111,6 +112,25 @@ class Parser(object) :
         return _FMapParser(self, f)
     def __ge__(self, f) :
         return _BindParser(self, f)
+
+class tryp(Parser) :
+    def __init__(self, p) :
+        self.p = p
+    def _parse(self, input, i) :
+        try :
+            return self.p._parse(input, i)
+        except ParserError :
+            raise ParserError.makeError(input, i)
+
+class lookahead(Parser) :
+    def __init__(self, p) :
+        self.p = p
+    def _parse(self, input, i) :
+        try :
+            i2, v = self.p._parse(input, i)
+            return i, v
+        except ParserError :
+            raise ParserError.makeError(input, i)
 
 class _FMapParser(Parser) :
     """Parser(a) -> (a -> b) -> Parser(b)"""

@@ -160,9 +160,11 @@ def mask_blob_metadata_tag(blob) :
 
 @update_blob_metadata.add_action
 def update_blob_metadata_default(blob) :
+    import blobviews
     blob["tags"].update({"_id" : blob.id,
                          "_doc_id" : blob["doc"]["doc_id"],
                          "_reply_to" : blob["doc"].get("reply_to", None),
+                         "_name" : blobviews.blob_get_name(blob),
                          "created" : blob["doc"]["created"],
                          "blob_base" : blob["doc"]["blob_base"],
                          })

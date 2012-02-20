@@ -8,6 +8,11 @@ from actionlist import ContinueWith, DeferAction, ActionList, action_assert, Act
 from tornado.httpclient import HTTPError
 import uuid
 import markup
+import querylang
+import mparserlib.lexer
+import mparserlib.parser
+import tornado.escape
+import qrenderers
 
 format_tag_value = ActionList(doc="""Lets one format the value of a
    tag appropriately when rendering the page.""")
@@ -19,7 +24,7 @@ format_tag_value = ActionList(doc="""Lets one format the value of a
 blobs.blob_types.append("text")
 
 def get_prepared_tags_for_db(text) :
-    tags, tag_data, html = markup.parse_markup(text)
+    tags, tag_data, html = markup.parse_markup(text, {"blobbase" : ""})
     new_tags = dict()
     for key,values in tags.iteritems() :
         if type(values) == list :
@@ -69,10 +74,22 @@ def create_textblob(handler, doc) :
 
 @blob_to_html.add_action
 def textblob_to_html(render_string, blob, a_data) :
+    do_query = make_query_maker(render_string, blob)
     action_assert(blob["doc"]["type"] == "text")
-    tags, tag_data, html = markup.parse_markup(blob["doc"]["text_content"])
-    a_data["content"] = a_data.get("content", "")+markup.parse_tags(format_tag_value, blob, *tag_data)+html
+    tags, tag_data, html = markup.parse_markup(blob["doc"]["text_content"], {
+            "blobbase" : blob["doc"]["blob_base"],
+            "query" : do_query,
+            })
+    a_data["content"] = a_data.get("content", "") + \
+        markup.parse_tags(format_tag_value, blob, *tag_data)+html
     raise DeferAction()
+
+def make_query_maker(render_string, blob) :
+    def do_query(query) :
+        res = querylang.run_query(render_string, blob.db, qrenderers.renderers,
+                                  blob["doc"]["blob_base"], query)
+        return res
+    return do_query
 
 #
 # blob_get_name
