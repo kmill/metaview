@@ -18,10 +18,10 @@ import datetime
 import modtext
 
 # date_field, reckon_from, create_if_not_exists
-todo_date_fields = [("reckon_from", "created", True),
+todo_date_fields = [("reckon_from", "modified", "created"),
                     ("deadline","reckon_from", False),
                     ("date","reckon_from", False)]
-event_date_fields = [("reckon_from", "created", True),
+event_date_fields = [("reckon_from", "modified", "created"),
                      ("date", "created", False),
                      ("until", "date", False)]
 
@@ -51,14 +51,14 @@ def filter_blob_metadata_dates(db, tags) :
         for field, depends, createp in todo_date_fields :
             if depends in tags and type(tags[depends]) is datetime.datetime :
                 if field in tags :
-                    date = tags[field][0] if type(tags[field]) is list else tags[field]
+                    sdate = tags[field][0] if type(tags[field]) is list else tags[field]
                     try :
-                        date = fuzzydate.parse_date(date, tags[depends])
+                        date = fuzzydate.parse_date(sdate, tags[depends])
                     except fuzzydate.DateFormatException as x :
                         date = "%s (DateFormatException: %r)" % (date, x.args)
                     tags[field] = date
-                elif createp :
-                    tags[field] = tags[depends]
+                elif createp in tags and type(tags[createp]) is datetime.datetime :
+                    tags[field] = tags[createp]
 
         raise ContinueWith(db, tags)
 
@@ -96,14 +96,14 @@ def filter_blob_metadata_dates(db, tags) :
         for field, depends, createp in event_date_fields :
             if depends in tags and type(tags[depends]) is datetime.datetime :
                 if field in tags :
-                    date = tags[field][0] if type(tags[field]) is list else tags[field]
+                    sdate = tags[field][0] if type(tags[field]) is list else tags[field]
                     try :
-                        date = fuzzydate.parse_date(date, tags[depends])
+                        date = fuzzydate.parse_date(sdate, tags[depends])
                     except fuzzydate.DateFormatException as x :
                         date = "%s (DateFormatException: %r)" % (date, x.args)
                     tags[field] = date
-                elif createp :
-                    tags[field] = tags[depends]
+                elif createp in tags and type(tags[createp]) is datetime.datetime :
+                    tags[field] = tags[createp]
                     
         raise ContinueWith(db, tags)
 

@@ -10,7 +10,7 @@ import datetime
 
 lexer = Lexer([
         Spec(None,  r'[\s,]+'), # whitespace (note comma!)
-        Spec(None, r'today|now'), # remove since blank string means today
+        Spec("relative3", r'today|now', re.IGNORECASE),
         Spec("relative", r'(last|next)\s+[A-Za-z]+', re.IGNORECASE),
         Spec("relative2", r'(\+|-)\d+\s*(h|d|w|m|y)[A-Za-z]*', re.IGNORECASE),
         Spec("hms", r'\d+:\d+:\d+'),
@@ -192,6 +192,13 @@ def parse_tokens(toks, currdate) :
                             break
                     else :
                         raise DateFormatException("Unknown relative", value)
+        elif kind=="relative3" :
+            value = value.lower()
+            if value == "now" :
+                continue
+            elif value == "today" :
+                try_append(data, [("deltaday", 0)])
+                continue
         elif kind=="relative2" :
             m = re.match(r"(\+|-)(\d+)\s*(h|d|w|m|y).*", value.lower())
             direction = -1 if m.group(1) == "-" else 1
