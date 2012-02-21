@@ -99,7 +99,7 @@ def r_calendar(glob, *date_columns) :
                     if date.year == edate.year \
                             and date.month == edate.month \
                             and date.day == edate.day :
-                        out.append("<div class=\"rcalendarentry\">%s %s</div>\n"
+                        out.append("<div class=\"rcalendarentry\"><span class=\"rcalendarentrydate\">%s</span> %s</div>\n"
                                    % (
                                 nice_time_format(edate),
                                 bloburl.blob_link(data[j][1], "show",

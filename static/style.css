@@ -363,3 +363,9 @@ div.rcalendarentry {
     margin-top: 1px;
     padding: 1px 1px 1px 1px;
 }
+
+span.rcalendarentrydate {
+    font-size: 68%;
+    font-family: "Helvetica", "arial", sans-serif;
+    font-weight: bold;
+}
