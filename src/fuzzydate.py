@@ -320,6 +320,8 @@ def eval_data(data, currdate) :
         if "meridian" in data :
             if hour > 12 and data["meridian"] == "am" :
                 raise DateFormatException("24-hour time conflicts with 'am'")
+            elif hour == 12 and data["meridian"] == "am" :
+                hour = 0
             if hour < 12 and data["meridian"] == "pm" :
                 hour += 12
         valid.update({"minute" : True, "second" : False})
