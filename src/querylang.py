@@ -280,15 +280,25 @@ def force_to_blobs(glob, blobs) :
     return list(require_type("blobs", blobs))[0]
 
 @add_to_env_with_state(env, "sort")
-def q_sort(env, glob, blobs, key=("value", "created"), dir=("value", "asc")) :
+def q_sort(env, glob, blobs, key=("value", "modified"), dir=("value", "asc")) :
     blobs = force_to_blobs(glob, blobs)
     key, dir = require_type("value", key, dir)
+    dirs = dir.split()
+    if len(dirs) > 1 :
+        dir = dirs[0]
+        doswap = dirs[1] == "swap"
+    else :
+        dir = dirs[0]
+        doswap = False
     dir = 1 if dir[0] == "a" else -1
-    def scmp(x, y) :
-        v = cmp(type(x), type(y))
+    def scmp(x, y, swap=False) :
+        if swap :
+            v = -cmp(type(x), type(y))
+        else :
+            v = cmp(type(x), type(y))
         if v == 0 : return cmp(x, y)
         return v
-    blobs = sorted(blobs, cmp=lambda x,y : dir*scmp(x,y), key=lambda b: b["tags"].get(key, 0))
+    blobs = sorted(blobs, cmp=lambda x,y : dir*scmp(x,y,doswap), key=lambda b: b["tags"].get(key, 0))
     return "blobs", blobs
 
 def translate_query(q, glob) :
@@ -319,7 +329,7 @@ def perform_db_query(db, blob_base, query) :
     """Runs a query (which is the output of translate_query) and gives
     the blobs."""
     search_defaults = {"blob_base" : blob_base, "_masked" : False}
-    sort = [("created", -1)]
+    sort = [("modified", -1)]
     query = query.copy()
     query.update(search_defaults)
     the_blobs = list(blobs.Blob.find_by_tags(db, query, sort))
@@ -333,7 +343,7 @@ def run_query(render_string, db, renderers, blob_base, s) :
             }
     try :
         t, res = translate_query(s, glob)
-        if t == "value" and type(res) in [str, unicode] :
+        if t == "value" and type(res) in [str, unicode] : # maybe should support other types?
             t = "query"
             res = {"title" : res}
         if t == "query" :
@@ -355,11 +365,11 @@ def run_query(render_string, db, renderers, blob_base, s) :
             raise QueryError("Result of query is wrong type", t)
     except LexerError as x :
         out = []
-        out.append("<div class=\"queryerror\"><p><strong>Lexer error</strong></p></div>")
+        out.append("<div class=\"queryerror\"><p><strong>Lexer error</strong></p>")
         row, column = x.pos
         line = s.split("\n")[row-1]
         out.append("<pre>"+tornado.escape.xhtml_escape(line)+"\n")
-        out.append(" "*(column) + "^</pre>")
+        out.append(" "*(column) + "^</pre></div>")
         return "".join(out)
     except ParserError as x :
         out = ["<div class=\"queryerror\"><p><strong>Parser error</strong></p>",

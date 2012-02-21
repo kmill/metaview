@@ -303,6 +303,9 @@ class RebuildHandler(MVRequestHandler) :
             id = idv["_id"]
             self.write("<p>%s</p>" % id)
             blob = blobs.Blob(self.db, id)
+            #if "modified" not in blob["doc"] :
+            #    blob["doc"]["modified"] = blob["doc"]["created"]
+            #    self.db.doc.update({"_id" : id}, blob["doc"])
             blobs.mask_blob_metadata(blob)
             blobs.update_blob_metadata(blob)
         self.write("<p>Done.</p>")
@@ -434,7 +437,7 @@ class SyncHandler(MVRequestHandler) :
             http_client.fetch("http://%s/file/%s" % (args["servername"], file["_id"]),
                               callback=self.on_file_pull(args, objects, files, i))
         else :
-            objects["blobs"].sort(key=lambda x:x["created"])
+            objects["blobs"].sort(key=lambda x:x["modified"])
             self.render("sync_successful.html", objects=objects, sync_type="pull")
             return
 
@@ -544,7 +547,7 @@ class SyncHandler(MVRequestHandler) :
             http_client = tornado.httpclient.AsyncHTTPClient()
             http_client.fetch(request, callback=self.on_file_pushed(args, objects, files, i))
         else :
-            objects["blobs"].sort(key=lambda x:x["created"])
+            objects["blobs"].sort(key=lambda x:x["modified"])
             self.render("sync_successful.html", objects=objects, sync_type="push")
             return
     def on_file_pushed(self, args, objects, files, i) :

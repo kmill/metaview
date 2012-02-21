@@ -37,7 +37,7 @@ class Blob(object) :
         if sort :
             return (Blob(db, res["_id"], tags=res) for res in db["tags"].find(spec).sort(sort))
         else :
-            return (Blob(db, res["_id"], tags=res) for res in db["tags"].find(spec).sort([("created", -1)]))
+            return (Blob(db, res["_id"], tags=res) for res in db["tags"].find(spec).sort([("modified", -1)]))
 
     def get_data(self, type) :
         """Gets an entry from the "type" collection whose _id is
@@ -91,6 +91,7 @@ def create_blob_default(handler, doc) :
                 "previous_version" : None, # it's not a new version of anything
                 "reply_to" : reply_to, # and not in reply to anything
                 "created" : datetime.datetime.now(),
+                "modified" : datetime.datetime.now(),
                 "comment" : comment,
                 })
     db['doc'].insert(doc)
@@ -110,7 +111,7 @@ def update_blob_default(user, blob) :
     blob["doc"].update({"_id" : newblob_id,
                         "modifier" : user,
                         "previous_version" : oldblob_id,
-                        "created" : datetime.datetime.now(), # update when this blob was created
+                        "modified" : datetime.datetime.now(), # update when this blob was created
                         })
     blob.db["doc"].insert(blob["doc"])
     mask_blob_metadata(blob)
@@ -133,7 +134,7 @@ def delete_blob_default(user, blob) :
                "deleted" : True,
                "previous_version" : oldblob_id,
                "reply_to" : blob["doc"]["reply_to"],
-               "created" : datetime.datetime.now(), # that is, when the blob was deleted.
+               "modified" : datetime.datetime.now(), # that is, when the blob was deleted.
                "comment" : "**deleted**",
                "type" : None,
                }
@@ -166,6 +167,7 @@ def update_blob_metadata_default(blob) :
                          "_reply_to" : blob["doc"].get("reply_to", None),
                          "_name" : blobviews.blob_get_name(blob),
                          "created" : blob["doc"]["created"],
+                         "modified" : blob["doc"]["modified"],
                          "blob_base" : blob["doc"]["blob_base"],
                          })
     if "_masked" not in blob["tags"] :

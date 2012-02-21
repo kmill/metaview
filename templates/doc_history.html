@@ -11,12 +11,12 @@
 {% for prefix,blob in history_entries %}
     <tr>
       <td style="padding-right:0.5em;">
-      {% if blob and last_date < blob["doc"]["created"].date() %}
-      {% set last_date = blob["doc"]["created"].date() %}
+      {% if blob and last_date < blob["doc"]["modified"].date() %}
+      {% set last_date = blob["doc"]["modified"].date() %}
 	<strong>{{ last_date.strftime("%Y-%m-%d") }}</strong>
       {% end %}
       </td>
-      <td style="padding-right:1em;">{% if blob %}{{ blob["doc"]["created"].strftime("%H:%M:%S") }}{% end %}</td>
+      <td style="padding-right:1em;">{% if blob %}{{ blob["doc"]["modified"].strftime("%H:%M:%S") }}{% end %}</td>
     <td>
     <table>
       <tr><td style="padding-right:0.75em;"><tt>{% raw prefix %}</tt></td>

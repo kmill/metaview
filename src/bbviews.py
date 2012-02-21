@@ -18,6 +18,6 @@ bb_views.define_actionlist("recent_changes", doc="For showing what's recently be
 
 @bb_views.add_action("recent_changes")
 def bb_views_recent_changes(handler, blob_base) :
-    entries = handler.db.doc.find({"blob_base" : blob_base}).sort([("created", -1)])
+    entries = handler.db.doc.find({"blob_base" : blob_base}).sort([("modified", -1)])
     the_blobs = blobs.Blob.docs_to_blobs(handler.db, entries)
     handler.render("bbrecent_changes.html", blob_base=blob_base, the_blobs=the_blobs)

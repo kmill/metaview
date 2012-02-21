@@ -17,9 +17,13 @@ import datetime
 
 import modtext
 
-todo_date_fields = ["deadline", "date"]
-event_date_fields = [("date", "created"),
-                     ("until", "date")]
+# date_field, reckon_from, create_if_not_exists
+todo_date_fields = [("reckon_from", "created", True),
+                    ("deadline","reckon_from", False),
+                    ("date","reckon_from", False)]
+event_date_fields = [("reckon_from", "created", True),
+                     ("date", "created", False),
+                     ("until", "date", False)]
 
 # todo
 
@@ -44,14 +48,17 @@ def filter_blob_metadata_dates(db, tags) :
         raise DeferAction()
     else :
         tags["tag"] = list_drop(list_lift(tags.get("tag", [])) + ["todo"])
-        for field in todo_date_fields :
-            if field in tags :
-                date = tags[field][0] if type(tags[field]) is list else tags[field]
-                try :
-                    date = fuzzydate.parse_date(date, tags["created"])
-                except fuzzydate.DateFormatException as x :
-                    date = "%s (DateFormatException: %r)" % (date, x.args)
-                tags[field] = date
+        for field, depends, createp in todo_date_fields :
+            if depends in tags and type(tags[depends]) is datetime.datetime :
+                if field in tags :
+                    date = tags[field][0] if type(tags[field]) is list else tags[field]
+                    try :
+                        date = fuzzydate.parse_date(date, tags[depends])
+                    except fuzzydate.DateFormatException as x :
+                        date = "%s (DateFormatException: %r)" % (date, x.args)
+                    tags[field] = date
+                elif createp :
+                    tags[field] = tags[depends]
 
         raise ContinueWith(db, tags)
 
@@ -61,7 +68,7 @@ def format_tag_value_date_fields(blob, key, values) :
         raise DeferAction()
     else :
         tags = blob["tags"]
-        if key in todo_date_fields and key in tags :
+        if key in (r[0] for r in todo_date_fields) and key in tags :
             v = tags[key][0] if type(tags[key]) is list else tags[key]
             if type(v) is datetime.datetime :
                 return True, [nice_date_format(v)]
@@ -86,14 +93,17 @@ def filter_blob_metadata_dates(db, tags) :
         raise DeferAction()
     else :
         tags["tag"] = list_drop(list_lift(tags.get("tag", [])) + ["event"])
-        for field, depends in event_date_fields :
-            if depends in tags and field in tags and type(tags[depends]) is datetime.datetime :
-                date = tags[field][0] if type(tags[field]) is list else tags[field]
-                try :
-                    date = fuzzydate.parse_date(date, tags[depends])
-                except fuzzydate.DateFormatException as x :
-                    date = "%s (DateFormatException: %r)" % (date, x.args)
-                tags[field] = date
+        for field, depends, createp in event_date_fields :
+            if depends in tags and type(tags[depends]) is datetime.datetime :
+                if field in tags :
+                    date = tags[field][0] if type(tags[field]) is list else tags[field]
+                    try :
+                        date = fuzzydate.parse_date(date, tags[depends])
+                    except fuzzydate.DateFormatException as x :
+                        date = "%s (DateFormatException: %r)" % (date, x.args)
+                    tags[field] = date
+                elif createp :
+                    tags[field] = tags[depends]
                     
         raise ContinueWith(db, tags)
 

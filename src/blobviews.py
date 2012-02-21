@@ -52,6 +52,7 @@ def blob_to_html_default(render_string, blob, a_data) :
     d = {"blob_id" : blob.id,
          "doc_id" : blob["doc"]["doc_id"],
          "created" : blob["doc"]["created"].strftime("%a, %b %e %Y, %l:%M:%S %p"), #%b %d %Y %I:%M:%S %p"),
+         "modified" : blob["doc"]["modified"].strftime("%a, %b %e %Y, %l:%M:%S %p"), #%b %d %Y %I:%M:%S %p"),
          "content" : a_data.get("content", "<center><p><em>Unknown blob type!</em></p></center>"),
          "blob" : blob,
          "has_replies" : has_replies,
@@ -73,7 +74,7 @@ def show_blob_default(handler, blob, a_data) :
 
 def render_blob_replies(handler, blob, top=False) :
     res = list(handler.db.tags.find({"_reply_to" : blob["doc"]["doc_id"],
-                                     "_masked" : False}).sort([("created", 1)]))
+                                     "_masked" : False}).sort([("modified", 1)]))
     if not res :
         suffix = ""
     else :

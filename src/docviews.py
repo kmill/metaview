@@ -22,10 +22,10 @@ doc_views.define_actionlist("history", doc="For showing the history of a documen
 
 @doc_views.add_action("show")
 def docview_show_default(handler, doc_id) :
-    entries = handler.db.tags.find({"_doc_id" : doc_id, "_masked" : False}).sort([("created", -1)])
+    entries = handler.db.tags.find({"_doc_id" : doc_id, "_masked" : False}).sort([("modified", -1)])
     the_blobs = list(blobs.Blob.tags_to_blobs(handler.db, entries))
     if not the_blobs :
-        entries = handler.db.tags.find({"_doc_id" : doc_id}).sort([("created", -1)])
+        entries = handler.db.tags.find({"_doc_id" : doc_id}).sort([("modified", -1)])
         the_blobs = list(blobs.Blob.tags_to_blobs(handler.db, entries))
         if not the_blobs :
             raise HTTPError(404)
@@ -51,7 +51,7 @@ def render_blob_replies(handler, blob) :
 def docview_history_default(handler, doc_id) :
     def is_blobid_current(mapping, bid) :
         return not mapping[bid]["doc"]["deleted"] and not mapping[bid]["tags"].get("_masked", False)
-    entries = handler.db.doc.find({"doc_id" : doc_id}).sort([("created", 1)])
+    entries = handler.db.doc.find({"doc_id" : doc_id}).sort([("modified", 1)])
     blob_by_id = dict()
     # ([seen_versions], curr_version)
     version_data = []
