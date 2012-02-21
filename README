@@ -1,3 +1,15 @@
 uses:
 - python 2.7
 - tornado 2.11
+- mathjax
+- mongo
+- pymongo
+
+To set up:
+- put mathjax in the ./static/mathjax directory
+- run "mongod --dbpath data/db"
+- run "start"
+
+To add a user, run "python2.7 ./src/util/useradd.py"
+
+Then navigate to http://localhost:8222/
