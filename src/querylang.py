@@ -366,18 +366,22 @@ def run_query(render_string, db, renderers, blob_base, s) :
     except LexerError as x :
         out = []
         out.append("<div class=\"queryerror\"><p><strong>Lexer error</strong></p>")
-        row, column = x.pos
-        line = s.split("\n")[row-1]
-        out.append("<pre>"+tornado.escape.xhtml_escape(line)+"\n")
-        out.append(" "*(column) + "^</pre></div>")
+        if x :
+            row, column = x.pos
+            line = s.split("\n")[row-1]
+            out.append("<pre>"+tornado.escape.xhtml_escape(line)+"\n")
+            out.append(" "*(column) + "^</pre>")
+        out.append("</div>")
         return "".join(out)
     except ParserError as x :
         out = ["<div class=\"queryerror\"><p><strong>Parser error</strong></p>",
                str(x).replace("\n", "<br/>")]
-        row, column = x.pos
-        line = s.split("\n")[row-1]
-        out.append("<pre>"+tornado.escape.xhtml_escape(line)+"\n")
-        out.append(" "*(column) + "^</pre></div>")
+        if x :
+            row, column = x.pos
+            line = s.split("\n")[row-1]
+            out.append("<pre>"+tornado.escape.xhtml_escape(line)+"\n")
+            out.append(" "*(column) + "^</pre>")
+        out.append("</div>")
         return "".join(out)
     except QueryError as x :
         error = "<div class=\"queryerror\"><p><strong>Query error</strong></p>" \

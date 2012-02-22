@@ -92,10 +92,23 @@ def render_blob_replies(handler, blob, top=False) :
 def edit_blob_default(handler, blob, a_data) :
     hidden = {"blob_id" : str(blob.id)}
     content = a_data.get("content", "")
-    return handler.render_string("blob_edit.html",
-                                 blob=blob,
-                                 hidden=hidden,
-                                 content=content)
+    editcontent = handler.render_string("blob_edit.html",
+                                        blob=blob,
+                                        hidden=hidden,
+                                        content=content)
+    render_string = handler.render_string
+    has_replies = 0 < len(list(blob.db.tags.find({"_reply_to" : blob["doc"]["doc_id"],
+                                                  "_masked" : False}, fields=["_id"])))
+    d = {"blob_id" : blob.id,
+         "doc_id" : blob["doc"]["doc_id"],
+         "created" : blob["doc"]["created"].strftime("%a, %b %e %Y, %l:%M:%S %p"), #%b %d %Y %I:%M:%S %p"),
+         "modified" : blob["doc"]["modified"].strftime("%a, %b %e %Y, %l:%M:%S %p"), #%b %d %Y %I:%M:%S %p"),
+         "content" : editcontent,
+         "blob" : blob,
+         "has_replies" : has_replies,
+         "a_data" : a_data,
+         }
+    return render_string("blob.html", **d)
 
 #
 # action: edit_post
