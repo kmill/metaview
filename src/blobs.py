@@ -134,6 +134,7 @@ def delete_blob_default(user, blob) :
                "deleted" : True,
                "previous_version" : oldblob_id,
                "reply_to" : blob["doc"]["reply_to"],
+               "created" : blob["doc"]["created"],
                "modified" : datetime.datetime.now(), # that is, when the blob was deleted.
                "comment" : "**deleted**",
                "type" : None,
