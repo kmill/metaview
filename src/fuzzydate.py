@@ -19,8 +19,8 @@ lexer = Lexer([
         Spec("md", r'\d+/\d+'),
         Spec("mdy", r'\d+-\d+-\d+'),
         Spec("md", r'\d+-\d+'),
-        Spec("hmeridian", r'\d+(am|pm)', re.IGNORECASE),
-        Spec("meridian", r'am|pm', re.IGNORECASE),
+        Spec("hmeridian", r'\d+(am|pm|a\.m\.|p\.m\.)', re.IGNORECASE),
+        Spec("meridian", r'am|pm|a\.m\.|p\.m\.', re.IGNORECASE),
         Spec("num", r"\d+(st|nd|rd|th)?"),
         Spec("text", r"[A-Za-z]+"),
         ])
@@ -292,13 +292,19 @@ def eval_data(data, currdate) :
         if not valid["day"] : raise DateFormatException("weekday specificity requires a month")
         if month is not None and day is None :
             raise DateFormatException("weekday specificity cannot only have a month")
+        if month is None :
+            month = currdate.month
+        if year is None :
+            year = currdate.year
+        reckonfrom = datetime.datetime(year, month, day or currdate.day)
+
         if data["weekday"] < 0 :
-            dd = (data["weekday"]+7-(currdate.weekday()+1)%7)%7 - 7
+            dd = (data["weekday"]+7-(reckonfrom.weekday()+1)%7)%7 - 7
         elif data["weekday"] >= 7 : # not this week, but _next_ week
-            dd = (data["weekday"]%7+7-(currdate.weekday()+1)%7)%7 + 7
+            dd = (data["weekday"]%7+7-(reckonfrom.weekday()+1)%7)%7 + 7
         else :
-            dd = (data["weekday"]+7-(currdate.weekday()+1)%7)%7
-        nextdate = currdate + datetime.timedelta(days=dd)
+            dd = (data["weekday"]+7-(reckonfrom.weekday()+1)%7)%7
+        nextdate = reckonfrom + datetime.timedelta(days=dd)
         if year is not None and year != nextdate.year :
             raise DateFormatException("weekday conficts with year")
         year = nextdate.year
@@ -325,11 +331,11 @@ def eval_data(data, currdate) :
         if not valid["hour"] : raise DateFormatException("hour specificity requires a day")
         hour = data["hour"]
         if "meridian" in data :
-            if hour > 12 and data["meridian"] == "am" :
+            if hour > 12 and data["meridian"] in ["am", "a.m."] :
                 raise DateFormatException("24-hour time conflicts with 'am'")
-            elif hour == 12 and data["meridian"] == "am" :
+            elif hour == 12 and data["meridian"] in ["am", "a.m."] :
                 hour = 0
-            if hour < 12 and data["meridian"] == "pm" :
+            if hour < 12 and data["meridian"] in ["pm", "p.m."] :
                 hour += 12
         valid.update({"minute" : True, "second" : False})
         invalid.update({"minute" : True, "second" : True})

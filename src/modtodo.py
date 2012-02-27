@@ -55,7 +55,7 @@ def filter_blob_metadata_dates(db, tags) :
                     try :
                         date = fuzzydate.parse_date(sdate, tags[depends])
                     except fuzzydate.DateFormatException as x :
-                        date = "%s (DateFormatException: %r)" % (date, x.args)
+                        date = "%s (DateFormatException: %r)" % (sdate, x.args)
                     tags[field] = date
                 elif createp in tags and type(tags[createp]) is datetime.datetime :
                     tags[field] = tags[createp]
@@ -100,7 +100,7 @@ def filter_blob_metadata_dates(db, tags) :
                     try :
                         date = fuzzydate.parse_date(sdate, tags[depends])
                     except fuzzydate.DateFormatException as x :
-                        date = "%s (DateFormatException: %r)" % (date, x.args)
+                        date = "%s (DateFormatException: %r)" % (sdate, x.args)
                     tags[field] = date
                 elif createp in tags and type(tags[createp]) is datetime.datetime :
                     tags[field] = tags[createp]
