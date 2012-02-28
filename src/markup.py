@@ -173,9 +173,12 @@ def parse_paragraph(text, data) :
         match = url_re.match(text, i)
         if match :
             email = match.group(3)
-            url = tornado.escape.xhtml_escape(match.group(2) or match.group(4) or ("mailto:"+email))
+            url = match.group(2) or match.group(4) or ("mailto:"+email)
+            if url and url[0] in "\"'" :
+                url = url[1:-1]
+            urle = tornado.escape.xhtml_escape(url)
             url_text = tornado.escape.xhtml_escape(match.group(2) or match.group(4) or email)
-            output.append("%s<a href=\"%s\">%s</a>" % (match.group(1) or "", url, url_text))
+            output.append("%s<a href=\"%s\">%s</a>" % (match.group(1) or "", urle, url_text))
             i += len(match.group(0))
             continue
         match = bold_re.match(text, i)
