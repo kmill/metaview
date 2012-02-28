@@ -118,7 +118,8 @@ def parse_paragraph(text, data) :
     entity_re = re.compile(r"&(#x?)?[0-9A-Za-z]+;") # cheating :-)
     verbatim_re = re.compile(r"`([^\s].*?[^\s])`")
     italic1_re = re.compile(r"_([^\s].*?[^\s])_")
-    italic2_re = re.compile(r"\*([^\s].*?[^\s])\*")
+    italic2_re = re.compile(r"/([^\s].*?[^\s])/")
+    italic3_re = re.compile(r"\*([^\s].*?[^\s])\*")
     bold_re = re.compile(r"\*\*([^\s].*?[^\s])\*\*")
     html_re = re.compile(r"</?\w+.*?>")
     plain_re = re.compile(r"[A-Za-z0-9\s]+")
@@ -186,12 +187,17 @@ def parse_paragraph(text, data) :
             output.append("<strong>%s</strong>" % parse_paragraph(match.group(1), data))
             i += len(match.group(0))
             continue
-        match = italic2_re.match(text, i)
+        match = italic3_re.match(text, i)
         if match :
             output.append("<em>%s</em>" % parse_paragraph(match.group(1), data))
             i += len(match.group(0))
             continue
         match = italic1_re.match(text, i)
+        if match :
+            output.append("<em>%s</em>" % parse_paragraph(match.group(1), data))
+            i += len(match.group(0))
+            continue
+        match = italic2_re.match(text, i)
         if match :
             output.append("<em>%s</em>" % parse_paragraph(match.group(1), data))
             i += len(match.group(0))
