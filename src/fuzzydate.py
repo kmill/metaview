@@ -305,11 +305,11 @@ def eval_data(data, currdate) :
         else :
             dd = (data["weekday"]+7-(reckonfrom.weekday()+1)%7)%7
         nextdate = reckonfrom + datetime.timedelta(days=dd)
-        if year is not None and year != nextdate.year :
-            raise DateFormatException("weekday conficts with year")
+        #if year is not None and year != nextdate.year :
+        #    raise DateFormatException("weekday conficts with year")
         year = nextdate.year
-        if month is not None and month != nextdate.month :
-            raise DateFormatException("weekday conficts with month")
+        #if month is not None and month != nextdate.month :
+        #    raise DateFormatException("weekday conficts with month")
         month = nextdate.month
         if day is not None and day != nextdate.day :
             raise DateFormatException("weekday conficts with day number")
