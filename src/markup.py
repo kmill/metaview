@@ -272,19 +272,16 @@ def parse_par_structure(data, line_data, line_num, force_paragraph=True) :
     start_line = line_num
     blocks = []
     curr_lines = []
+    pbreak = (0, 0, None, "", "")
     while line_num < len(line_data) :
         ld = line_data[line_num]
-        if ld == (0, 0, None, "", "") : # paragraph break
+        if ld == pbreak : # paragraph break
             blocks.append(None)
             if curr_lines :
                 blocks.append(("p", parse_paragraph(" ".join(curr_lines), data)))
                 curr_lines = []
             line_num += 1
-        elif (ld[0] == indent and ld[2] == None) or (start_line == line_num and ld[2] == "list") : # normal line in paragraph
-            if ld[4] != "" :
-                curr_lines.append(ld[4])
-            line_num += 1
-        elif ld[0] > indent and ld[2] == None :
+        elif (ld[0] > indent or (indent > 0 and start_line == line_num)) and ld[2] == None :
             # code block
             if curr_lines :
                 blocks.append(("p-before", parse_paragraph(" ".join(curr_lines), data)))
@@ -292,12 +289,17 @@ def parse_par_structure(data, line_data, line_num, force_paragraph=True) :
             code = []
             code_indent = ld[0]
             while (line_num < len(line_data)
-                   and line_data[line_num][2] == None
-                   and line_data[line_num][0] >= code_indent) :
+                   and ((line_data[line_num][2] == None
+                         and line_data[line_num][0] >= code_indent)
+                        or line_data[line_num] == pbreak)) :
                 ld = line_data[line_num]
                 code.append(" "*(ld[0]-code_indent) + ld[4])
                 line_num += 1
             blocks.append((None, "<pre><code>%s</code></pre>" % tornado.escape.xhtml_escape("\n".join(code))))
+        elif (ld[0] == indent and ld[2] == None) or (start_line == line_num and ld[2] == "list") : # normal line in paragraph
+            if ld[4] != "" :
+                curr_lines.append(ld[4])
+            line_num += 1
         elif ld[0] < indent :
             if line_num > 0 and line_data[line_num-1] == (0, 0, None, "", "") :
                 line_num -= 1
