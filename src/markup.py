@@ -135,7 +135,13 @@ def parse_paragraph(text, data) :
 
     query_re = re.compile(r"<\|(.+?)\|>(\[(.+?)\])?")
 
+    in_separator = True
+    next_in_separator = True
+
     while i < len(text) :
+        in_separator = next_in_separator
+        next_in_separator = False
+
         if text[i] == "\\" :
             if i+1 < len(text) :
                 if text[i+1] == "$" : # for math mode
@@ -183,22 +189,22 @@ def parse_paragraph(text, data) :
             i += len(match.group(0))
             continue
         match = bold_re.match(text, i)
-        if match :
+        if in_separator and match :
             output.append("<strong>%s</strong>" % parse_paragraph(match.group(1), data))
             i += len(match.group(0))
             continue
         match = italic3_re.match(text, i)
-        if match :
+        if in_separator and match :
             output.append("<em>%s</em>" % parse_paragraph(match.group(1), data))
             i += len(match.group(0))
             continue
         match = italic1_re.match(text, i)
-        if match :
+        if in_separator and match :
             output.append("<em>%s</em>" % parse_paragraph(match.group(1), data))
             i += len(match.group(0))
             continue
         match = italic2_re.match(text, i)
-        if match :
+        if in_separator and match :
             output.append("<em>%s</em>" % parse_paragraph(match.group(1), data))
             i += len(match.group(0))
             continue
@@ -230,6 +236,8 @@ def parse_paragraph(text, data) :
                 output.append("&mdash;")
             continue
 
+        if text[i] in " \n" :
+            next_in_separator = True
         output.append(text[i])
         i += 1
                 

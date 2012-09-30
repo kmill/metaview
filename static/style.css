@@ -190,6 +190,14 @@ table.tags + p {
     margin-top: 0;
 }
 
+textarea {
+  font-family: "Monaco","DejaVu Sans Mono","Courier New",monospace;
+}
+pre code {
+  font-family: "Monaco","DejaVu Sans Mono","Courier New",monospace;
+  font-size: 12px;
+}
+
 div.blob blockquote {
     border-style: solid;
     border-width: 0 0 0 2px;
