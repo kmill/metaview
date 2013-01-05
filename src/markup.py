@@ -225,7 +225,7 @@ def parse_paragraph(text, data) :
             continue
         if text[i] == "-" :
             count = 0
-            while text[i] == "-" and i < len(text) :
+            while i < len(text) and text[i] == "-" :
                 count += 1
                 i += 1
             if count == 1 :
